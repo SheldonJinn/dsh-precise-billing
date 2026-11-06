@@ -1018,6 +1018,7 @@ window.__ModuleLoader__.load({
       const [dim, setDim] = React.useState('day');
       const [anchor, setAnchor] = React.useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
       const [detail, setDetail] = React.useState(null);
+      const [hoverKey, setHoverKey] = React.useState(null);
 
       let from;
       let to;
@@ -1042,6 +1043,12 @@ window.__ModuleLoader__.load({
       const officialNeedsLocal = mode === 'official' && data && data.peakSplit === false;
       const calendar = buildCalendar(days, localMap, dim, anchor, todayKey, officialNeedsLocal);
       const maxTokens = Math.max(...calendar.cells.filter(Boolean).map((cell) => cell.tokens), 1);
+      const calTotals = calendar.cells.filter(Boolean).reduce((acc, cell) => ({
+        tokens: acc.tokens + cell.tokens,
+        cost: acc.cost + cell.cost,
+        peakCost: acc.peakCost + cell.peakCost,
+        offPeakCost: acc.offPeakCost + cell.offPeakCost,
+      }), { tokens: 0, cost: 0, peakCost: 0, offPeakCost: 0 });
 
       const shift = (delta) => {
         if (dim === 'day') {
@@ -1073,6 +1080,8 @@ window.__ModuleLoader__.load({
           border: isToday ? '1px solid #2f6fed' : '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
           background: 'rgba(47,111,237,' + [0, 0.05, 0.1, 0.17, 0.25][level] + ')',
           cursor: 'pointer',
+          transition: 'transform .08s ease, box-shadow .08s ease',
+          boxShadow: hoverKey === cell.key ? '0 0 0 1px rgba(47,111,237,.55) inset' : 'none',
           display: 'flex',
           flexDirection: 'column',
           gap: 1,
@@ -1099,13 +1108,25 @@ window.__ModuleLoader__.load({
           h('button', { type: 'button', onClick: () => { setAnchor({ year: today.getFullYear(), month: today.getMonth() + 1 }); setDetail(null); }, style: { padding: '4px 8px', fontSize: 11.5, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '今天'),
           state.status === 'loading' ? h('span', { style: { fontSize: 11, color: MUTED } }, '加载中…') : null,
           officialNeedsLocal ? h('span', { style: { fontSize: 10.5, color: MUTED } }, '峰/闲取自本地日志（官方按天返回）') : null),
+        h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', fontSize: 11, color: MUTED, margin: '6px 0 8px' } },
+          h('span', null, '当前视图合计'),
+          h('span', null, 'Tokens ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtNumberCn(calTotals.tokens))),
+          h('span', null, '总额 ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtMoneyCn(calTotals.cost))),
+          h('span', null, '峰 ', h('b', { style: { color: PEAK_COLOR } }, fmtMoneyCn(calTotals.peakCost))),
+          h('span', null, '闲 ', h('b', { style: { color: OFF_COLOR } }, fmtMoneyCn(calTotals.offPeakCost)))),
         dim === 'day'
           ? h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4, marginBottom: 4 } },
               weekday.map((name) => h('div', { key: name, style: { fontSize: 10.5, color: MUTED, textAlign: 'center' } }, name)))
           : null,
         h('div', { style: { display: 'grid', gridTemplateColumns: columns, gap: 4 } },
           calendar.cells.map((cell, index) => cell
-            ? h('div', { key: cell.key || 'blank-' + index, style: cellStyle(cell), onClick: () => setDetail(cell) },
+            ? h('div', {
+                key: cell.key || 'blank-' + index,
+                style: cellStyle(cell),
+                onMouseEnter: () => setHoverKey(cell.key),
+                onMouseLeave: () => setHoverKey(null),
+                onClick: () => setDetail(cell),
+              },
                 h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4 } },
                   h('span', { style: { fontSize: 11, fontWeight: 700 } }, cell.label),
                   h('span', { style: { fontSize: 10, color: MUTED } }, cell.sub)),
