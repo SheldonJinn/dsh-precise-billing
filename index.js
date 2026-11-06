@@ -996,7 +996,8 @@ export function usageLocal(from, to, modelFilter) {
 }
 
 /** 官方口径：by_api_key amount + cost 的小时桶，按北京时间分日/分峰闲 */
-export async function usageOfficial(ctx, from, to) {
+export async function usageOfficial(ctx, from, to, modelFilter) {
+  const wantModel = modelFilter && modelFilter !== 'all' ? String(modelFilter) : undefined;
   let token;
   try {
     const record = await ctx.credentials?.readRecord?.(ACCOUNT_RECORD_KEY);
@@ -1029,6 +1030,7 @@ export async function usageOfficial(ctx, from, to) {
   const canSplit = bucketSize <= 3600;
   for (const series of Array.isArray(amountBody.series) ? amountBody.series : []) {
     const model = series?.model ? String(series.model) : 'unknown';
+    if (wantModel && model !== wantModel) continue;
     for (const bucket of Array.isArray(series?.buckets) ? series.buckets : []) {
       const time = Number(bucket?.time);
       if (!Number.isFinite(time)) continue;
@@ -1064,6 +1066,7 @@ export async function usageOfficial(ctx, from, to) {
   for (const block of costBlocks) {
     for (const series of Array.isArray(block?.series) ? block.series : []) {
       const model = series?.model ? String(series.model) : 'unknown';
+      if (wantModel && model !== wantModel) continue;
       for (const bucket of Array.isArray(series?.buckets) ? series.buckets : []) {
         const time = Number(bucket?.time);
         const cost = Number(bucket?.cost ?? bucket?.amount);
@@ -1114,7 +1117,7 @@ export async function usageOfficial(ctx, from, to) {
   totals.models = Object.entries(models).map(([model, value]) => ({ model, ...value }));
 
   const account = await readAccount(ctx).catch(() => undefined);
-  const local = usageLocal(from, to);
+  const local = usageLocal(from, to, modelFilter);
   return {
     mode: 'official',
     from,
@@ -1241,7 +1244,7 @@ export function apply(ctx) {
           const model = url.searchParams.get('model') || undefined;
           const payload =
             mode === 'official'
-              ? await usageOfficial(ctx, from, to)
+              ? await usageOfficial(ctx, from, to, model)
               : usageLocal(from, to, model);
           sendJson(res, 200, { ok: true, ...payload, computedAt: Date.now() });
           return;
