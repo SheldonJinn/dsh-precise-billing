@@ -32,7 +32,7 @@ let accountCache = null;
 
 const ZSTD_MAGIC = Buffer.from([0x28, 0xb5, 0x2f, 0xfd]);
 const SHANGHAI_OFFSET_MS = 8 * 3600 * 1000;
-const STORE_VERSION = 3;
+const STORE_VERSION = 4;
 const SUM_TTL_MS = 4000;
 
 const DEFAULT_SETTINGS = {
@@ -173,6 +173,7 @@ function emptySummary() {
     unpricedMessages: 0,
     unpricedModels: [],
     byDate: {},
+    hours: {},
     nextOffset: 0,
     lastModel: undefined,
     lastSeq: -1,
@@ -243,13 +244,33 @@ function addRecord(summary, record) {
     (summary.byDate[date] = {
       messages: 0,
       cost: 0,
+      peakCost: 0,
+      offPeakCost: 0,
       tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 },
+      models: {},
     });
   day.messages += 1;
   day.tokens.input += input;
   day.tokens.cacheRead += cacheRead;
   day.tokens.cacheWrite += cacheWrite;
   day.tokens.output += output;
+
+  const modelKey = model ? String(model) : 'unknown';
+  if (!day.models) day.models = {};
+  const modelDay =
+    day.models[modelKey] ??
+    (day.models[modelKey] = {
+      messages: 0,
+      cost: 0,
+      peakCost: 0,
+      offPeakCost: 0,
+      tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 },
+    });
+  modelDay.messages += 1;
+  modelDay.tokens.input += input;
+  modelDay.tokens.cacheRead += cacheRead;
+  modelDay.tokens.cacheWrite += cacheWrite;
+  modelDay.tokens.output += output;
 
   const table = priceFor(model);
   let cost = 0;
@@ -265,6 +286,37 @@ function addRecord(summary, record) {
     if (peak) summary.peakCost += cost;
     else summary.offPeakCost += cost;
     day.cost += cost;
+    if (peak) day.peakCost += cost;
+    else day.offPeakCost += cost;
+    modelDay.cost += cost;
+    if (peak) modelDay.peakCost += cost;
+    else modelDay.offPeakCost += cost;
+  }
+
+  const hours = summary.hours ?? (summary.hours = {});
+  const bj = new Date(time + SHANGHAI_OFFSET_MS);
+  const hourKey = String(bj.getUTCFullYear()) + '-' + String(bj.getUTCMonth() + 1).padStart(2, '0') + '-' + String(bj.getUTCDate()).padStart(2, '0') + 'T' + String(bj.getUTCHours()).padStart(2, '0');
+  const hour =
+    hours[hourKey] ??
+    (hours[hourKey] = {
+      messages: 0,
+      cost: 0,
+      peakCost: 0,
+      offPeakCost: 0,
+      tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 },
+    });
+  hour.messages += 1;
+  hour.tokens.input += input;
+  hour.tokens.cacheRead += cacheRead;
+  hour.tokens.cacheWrite += cacheWrite;
+  hour.tokens.output += output;
+  hour.cost += cost;
+  if (peak) hour.peakCost += cost;
+  else hour.offPeakCost += cost;
+  const keys = Object.keys(hours);
+  if (keys.length > 240) {
+    keys.sort();
+    for (const key of keys.slice(0, keys.length - 168)) delete hours[key];
   }
 
   const turns = Array.isArray(summary.turns) ? summary.turns : (summary.turns = []);
@@ -343,6 +395,7 @@ function updateSummary(file, previous) {
     ...previous,
     tokens: { ...previous.tokens },
     byDate: cloneDates(previous.byDate),
+    hours: cloneHours(previous.hours),
     turns: [...(previous.turns ?? [])],
   };
   let offset = summary.nextOffset ?? 0;
@@ -377,7 +430,39 @@ function cloneDates(byDate) {
   const out = {};
   if (!byDate) return out;
   for (const [key, value] of Object.entries(byDate)) {
-    out[key] = { messages: value.messages, cost: value.cost, tokens: { ...value.tokens } };
+    const models = {};
+    for (const [name, m] of Object.entries(value.models ?? {})) {
+      models[name] = {
+        messages: m.messages,
+        cost: m.cost,
+        peakCost: m.peakCost,
+        offPeakCost: m.offPeakCost,
+        tokens: { ...m.tokens },
+      };
+    }
+    out[key] = {
+      messages: value.messages,
+      cost: value.cost,
+      peakCost: value.peakCost ?? 0,
+      offPeakCost: value.offPeakCost ?? 0,
+      tokens: { ...value.tokens },
+      models,
+    };
+  }
+  return out;
+}
+
+function cloneHours(hours) {
+  const out = {};
+  if (!hours) return out;
+  for (const [key, value] of Object.entries(hours)) {
+    out[key] = {
+      messages: value.messages,
+      cost: value.cost,
+      peakCost: value.peakCost ?? 0,
+      offPeakCost: value.offPeakCost ?? 0,
+      tokens: { ...value.tokens },
+    };
   }
   return out;
 }
@@ -787,6 +872,257 @@ function monthStartSec(nowMs) {
   return Math.floor(startMs / 1000);
 }
 
+
+// ---------------------------------------------------------------- usage
+
+function pad2n(n) {
+  return String(n).padStart(2, '0');
+}
+
+function zeroTokens() {
+  return { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 };
+}
+
+function addTokens(target, source) {
+  target.input += source?.input ?? 0;
+  target.cacheRead += source?.cacheRead ?? 0;
+  target.cacheWrite += source?.cacheWrite ?? 0;
+  target.output += source?.output ?? 0;
+}
+
+function emptyUsageBucket() {
+  return { requests: 0, cost: 0, peakCost: 0, offPeakCost: 0, tokens: zeroTokens(), models: {} };
+}
+
+function dayStartSec(dateKey) {
+  const [y, m, d] = String(dateKey).split('-').map(Number);
+  return Math.floor((Date.UTC(y, m - 1, d) - SHANGHAI_OFFSET_MS) / 1000);
+}
+
+function hourKeyOf(ms) {
+  const bj = new Date(ms + SHANGHAI_OFFSET_MS);
+  return (
+    bj.getUTCFullYear() + '-' + pad2n(bj.getUTCMonth() + 1) + '-' + pad2n(bj.getUTCDate()) + 'T' + pad2n(bj.getUTCHours())
+  );
+}
+
+function mergeDayUsage(target, value) {
+  target.requests += value.requests ?? 0;
+  target.cost += value.cost ?? 0;
+  target.peakCost += value.peakCost ?? 0;
+  target.offPeakCost += value.offPeakCost ?? 0;
+  addTokens(target.tokens, value.tokens);
+}
+
+/** 本地口径：从已解析的会话日桶/时桶聚合 */
+export function usageLocal(from, to, modelFilter) {
+  refresh();
+  const days = {};
+  const hours = {};
+  const models = {};
+  const wantModel = modelFilter && modelFilter !== 'all' ? String(modelFilter) : undefined;
+  for (const entry of Object.values(getStore().files)) {
+    const summary = entry.summary;
+    if (!summary) continue;
+    for (const [date, day] of Object.entries(summary.byDate ?? {})) {
+      if (date < from || date > to) continue;
+      let tokens;
+      let cost;
+      let peakCost;
+      let offPeakCost;
+      let requests;
+      if (wantModel) {
+        const m = day.models?.[wantModel];
+        if (!m) continue;
+        tokens = m.tokens;
+        cost = m.cost;
+        peakCost = m.peakCost;
+        offPeakCost = m.offPeakCost;
+        requests = m.messages;
+      } else {
+        tokens = day.tokens;
+        cost = day.cost;
+        peakCost = day.peakCost ?? 0;
+        offPeakCost = day.offPeakCost ?? 0;
+        requests = day.messages;
+      }
+      const slot = days[date] ?? (days[date] = emptyUsageBucket());
+      mergeDayUsage(slot, { requests, cost, peakCost, offPeakCost, tokens });
+      for (const [name, m] of Object.entries(day.models ?? {})) {
+        if (wantModel && name !== wantModel) continue;
+        const slotModel = slot.models[name] ?? (slot.models[name] = { requests: 0, cost: 0, peakCost: 0, offPeakCost: 0, tokens: zeroTokens() });
+        mergeDayUsage(slotModel, { requests: m.messages, cost: m.cost, peakCost: m.peakCost, offPeakCost: m.offPeakCost, tokens: m.tokens });
+      }
+    }
+    if (!wantModel) {
+      for (const [key, hour] of Object.entries(summary.hours ?? {})) {
+        const date = key.slice(0, 10);
+        if (date < from || date > to) continue;
+        const slot = hours[key] ?? (hours[key] = emptyUsageBucket());
+        mergeDayUsage(slot, hour);
+      }
+    }
+  }
+
+  for (const day of Object.values(days)) {
+    for (const [name, value] of Object.entries(day.models)) {
+      const agg = models[name] ?? (models[name] = { requests: 0, cost: 0, peakCost: 0, offPeakCost: 0, tokens: zeroTokens() });
+      mergeDayUsage(agg, value);
+    }
+  }
+
+  const totals = emptyUsageBucket();
+  for (const day of Object.values(days)) {
+    totals.requests += day.requests;
+    totals.cost += day.cost;
+    totals.peakCost += day.peakCost;
+    totals.offPeakCost += day.offPeakCost;
+    addTokens(totals.tokens, day.tokens);
+  }
+  totals.models = Object.entries(models).map(([model, value]) => ({ model, ...value }));
+
+  return {
+    mode: 'local',
+    from,
+    to,
+    days: Object.entries(days)
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([date, value]) => ({ date, ...value, models: Object.entries(value.models).map(([model, m]) => ({ model, ...m })) })),
+    hours: Object.entries(hours)
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([time, value]) => ({ time, ...value })),
+    totals,
+  };
+}
+
+/** 官方口径：by_api_key amount + cost 的小时桶，按北京时间分日/分峰闲 */
+export async function usageOfficial(ctx, from, to) {
+  let token;
+  try {
+    const record = await ctx.credentials?.readRecord?.(ACCOUNT_RECORD_KEY);
+    token = record?.payload?.token;
+  } catch {
+    token = undefined;
+  }
+  if (typeof token !== 'string' || token.length === 0) {
+    return { mode: 'official', from, to, days: [], hours: [], totals: emptyUsageBucket(), error: 'not-logged' };
+  }
+  const start = dayStartSec(from);
+  const end = dayStartSec(to) + 86400;
+  const [amountRes, costRes] = await Promise.all([
+    platformGet(token, '/api/v0/usage/by_api_key/amount?start=' + start + '&end=' + end + '&tz=28800'),
+    platformGet(token, '/api/v0/usage/by_api_key/cost?start=' + start + '&end=' + end + '&tz=28800'),
+  ]);
+  if (amountRes?.unauthorized || costRes?.unauthorized) {
+    return { mode: 'official', from, to, days: [], hours: [], totals: emptyUsageBucket(), error: 'unauthorized' };
+  }
+
+  const days = {};
+  const hours = {};
+  const models = {};
+  const dayOf = (date) => days[date] ?? (days[date] = emptyUsageBucket());
+  const hourOf = (key) => hours[key] ?? (hours[key] = emptyUsageBucket());
+  const modelOf = (list, name) => list[name] ?? (list[name] = { requests: 0, cost: 0, peakCost: 0, offPeakCost: 0, tokens: zeroTokens() });
+
+  const amountBody = amountRes?.data?.data?.biz_data ?? amountRes?.data?.biz_data ?? {};
+  for (const series of Array.isArray(amountBody.series) ? amountBody.series : []) {
+    const model = series?.model ? String(series.model) : 'unknown';
+    for (const bucket of Array.isArray(series?.buckets) ? series.buckets : []) {
+      const time = Number(bucket?.time);
+      if (!Number.isFinite(time)) continue;
+      const usage = bucket?.usage ?? {};
+      const tokens = {
+        input: Number(usage.PROMPT_CACHE_MISS_TOKEN) || 0,
+        cacheRead: Number(usage.PROMPT_CACHE_HIT_TOKEN) || 0,
+        cacheWrite: 0,
+        output: Number(usage.RESPONSE_TOKEN) || 0,
+      };
+      const requests = Number(usage.REQUEST) || 0;
+      const ms = time * 1000;
+      const date = beijingDateKey(ms);
+      if (date < from || date > to) continue;
+      const key = hourKeyOf(ms);
+      const day = dayOf(date);
+      const hour = hourOf(key);
+      day.requests += requests;
+      addTokens(day.tokens, tokens);
+      hour.requests += requests;
+      addTokens(hour.tokens, tokens);
+      const dm = modelOf(day.models, model);
+      dm.requests += requests;
+      addTokens(dm.tokens, tokens);
+      const gm = modelOf(models, model);
+      gm.requests += requests;
+      addTokens(gm.tokens, tokens);
+    }
+  }
+
+  const costBody = costRes?.data?.data?.biz_data ?? costRes?.data?.biz_data ?? {};
+  const costBlocks = Array.isArray(costBody?.data) ? costBody.data : [];
+  for (const block of costBlocks) {
+    for (const series of Array.isArray(block?.series) ? block.series : []) {
+      const model = series?.model ? String(series.model) : 'unknown';
+      for (const bucket of Array.isArray(series?.buckets) ? series.buckets : []) {
+        const time = Number(bucket?.time);
+        const cost = Number(bucket?.cost ?? bucket?.amount);
+        if (!Number.isFinite(time) || !Number.isFinite(cost)) continue;
+        const ms = time * 1000;
+        const date = beijingDateKey(ms);
+        if (date < from || date > to) continue;
+        const peak = isPeak(ms);
+        const key = hourKeyOf(ms);
+        const day = dayOf(date);
+        const hour = hourOf(key);
+        day.cost += cost;
+        hour.cost += cost;
+        if (peak) {
+          day.peakCost += cost;
+          hour.peakCost += cost;
+        } else {
+          day.offPeakCost += cost;
+          hour.offPeakCost += cost;
+        }
+        const dm = modelOf(day.models, model);
+        const gm = modelOf(models, model);
+        dm.cost += cost;
+        gm.cost += cost;
+        if (peak) {
+          dm.peakCost += cost;
+          gm.peakCost += cost;
+        } else {
+          dm.offPeakCost += cost;
+          gm.offPeakCost += cost;
+        }
+      }
+    }
+  }
+
+  const totals = emptyUsageBucket();
+  for (const day of Object.values(days)) {
+    totals.requests += day.requests;
+    totals.cost += day.cost;
+    totals.peakCost += day.peakCost;
+    totals.offPeakCost += day.offPeakCost;
+    addTokens(totals.tokens, day.tokens);
+  }
+  totals.models = Object.entries(models).map(([model, value]) => ({ model, ...value }));
+
+  const account = await readAccount(ctx).catch(() => undefined);
+  return {
+    mode: 'official',
+    from,
+    to,
+    days: Object.entries(days)
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([date, value]) => ({ date, ...value, models: Object.entries(value.models).map(([model, m]) => ({ model, ...m })) })),
+    hours: Object.entries(hours)
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([time, value]) => ({ time, ...value })),
+    totals,
+    balance: account?.logged ? { balance: account.balance, currency: account.currency } : undefined,
+  };
+}
+
 /** 读取 DSH 里已登录的 DeepSeek 账号：余额 + 本月 token + 官方今日/本月/累计费用 */
 export async function readAccount(ctx) {
   const now = Date.now();
@@ -885,6 +1221,19 @@ export function apply(ctx) {
           if (!id) { sendJson(res, 400, { ok: false, error: 'session required' }); return; }
           const detail = sessionSummary(id);
           sendJson(res, detail ? 200 : 404, detail ? { ok: true, session: detail } : { ok: false, error: 'not found' });
+          return;
+        }
+
+        if (pathname === '/api/precise-billing/usage') {
+          const from = url.searchParams.get('from') || beijingDateKey(Date.now());
+          const to = url.searchParams.get('to') || from;
+          const mode = url.searchParams.get('mode') === 'official' ? 'official' : 'local';
+          const model = url.searchParams.get('model') || undefined;
+          const payload =
+            mode === 'official'
+              ? await usageOfficial(ctx, from, to)
+              : usageLocal(from, to, model);
+          sendJson(res, 200, { ok: true, ...payload, computedAt: Date.now() });
           return;
         }
 
