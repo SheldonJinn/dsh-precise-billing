@@ -676,27 +676,142 @@ window.__ModuleLoader__.load({
       return '¥' + n.toFixed(4);
     }
 
-    function useUsage(rangeKey, mode, model) {
-      const [state, setState] = React.useState({ status: 'loading' });
-      const [tick, setTick] = React.useState(0);
-      React.useEffect(() => {
-        let alive = true;
-        const { from, to } = rangeOf(rangeKey);
-        let query = '/api/precise-billing/usage?from=' + from + '&to=' + to + '&mode=' + mode;
-        if (model && model !== 'all') query += '&model=' + encodeURIComponent(model);
-        fetch(query, { cache: 'no-store' })
-          .then((res) => res.json())
-          .then((data) => {
-            if (alive) setState({ status: 'ok', data });
-          })
-          .catch((error) => {
-            if (alive) setState({ status: 'error', error: String((error && error.message) || error) });
-          });
-        return () => {
-          alive = false;
-        };
-      }, [rangeKey, mode, model, tick]);
-      return [state, () => setTick((x) => x + 1)];
+    const MODEL_PALETTE = ['#2f6fed', '#e07f0a', '#2e9e63', '#9b59b6', '#c0392b', '#16a085', '#d35400', '#8e44ad'];
+
+    function modelColor(name, list) {
+      const index = Math.max(0, (list || []).indexOf(name));
+      return MODEL_PALETTE[index % MODEL_PALETTE.length];
+    }
+
+    function zeroTokenBucket() {
+      return { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 };
+    }
+
+    function filterUsageByModels(data, selected) {
+      if (!data || !Array.isArray(selected) || selected.length === 0) return data;
+      const all = ((data.totals && data.totals.models) || []).map((item) => item.model);
+      if (selected.length >= all.length && all.every((name) => selected.includes(name))) return data;
+      const set = new Set(selected);
+      const pick = (models) => {
+        const out = { tokens: zeroTokenBucket(), cost: 0, peakCost: 0, offPeakCost: 0, requests: 0, models: [] };
+        for (const model of models || []) {
+          if (!set.has(model.model)) continue;
+          out.models.push(model);
+          out.cost += model.cost || 0;
+          out.peakCost += model.peakCost || 0;
+          out.offPeakCost += model.offPeakCost || 0;
+          out.requests += model.requests || 0;
+          const t = model.tokens || {};
+          out.tokens.input += t.input || 0;
+          out.tokens.cacheRead += t.cacheRead || 0;
+          out.tokens.cacheWrite += t.cacheWrite || 0;
+          out.tokens.output += t.output || 0;
+        }
+        return out;
+      };
+      const mapDays = (days) =>
+        (days || [])
+          .map((day) => ({ ...day, ...pick(day.models) }))
+          .filter((day) => day.models.length > 0);
+      const days = mapDays(data.days);
+      const localDays = data.localDays ? mapDays(data.localDays) : undefined;
+      const totals = pick((data.totals && data.totals.models) || []);
+      return { ...data, days, localDays, totals };
+    }
+
+    function UsageModelTrendChart({ days, models }) {
+      const list = (days || []).slice(-31);
+      if (list.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
+      const max = Math.max(...list.map((day) => day.cost || 0), 0.0001);
+      const names = models || [];
+      return h('div', null,
+        h('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 3, height: 130, paddingTop: 6 } },
+          list.map((day) => {
+            const total = day.cost || 0;
+            const height = Math.max(2, (total / max) * 100);
+            const dayModels = (day.models || []).slice().sort((a, b) => (b.cost || 0) - (a.cost || 0));
+            return h('div', {
+              key: day.date,
+              title: day.date + ' · ' + fmtMoneyCn(total),
+              style: { flex: '1 1 0', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', minWidth: 4 },
+            },
+              h('div', { style: { height: height + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: 2, overflow: 'hidden' } },
+                dayModels.map((model) => h('div', { key: model.model, style: { height: total > 0 ? ((model.cost || 0) / total) * 100 + '%' : '0%', background: modelColor(model.model, names) } }))));
+          })),
+        h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8, fontSize: 10.5, color: MUTED } },
+          names.map((name) => h('span', { key: name, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
+            h('i', { style: { width: 8, height: 8, borderRadius: 2, background: modelColor(name, names), display: 'inline-block' } }), name))));
+    }
+
+    function UsageTokenBreakdown({ models, metric, modelColors }) {
+      const list = (models || []).slice().sort((a, b) =>
+        metric === 'requests' ? (b.requests || 0) - (a.requests || 0) : usageTotalTokens(b.tokens) - usageTotalTokens(a.tokens));
+      if (list.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
+      const segments = [
+        { key: 'cacheRead', label: '输入（命中缓存）', color: '#2f6fed' },
+        { key: 'input', label: '输入（未命中缓存）', color: '#7fb2ff' },
+        { key: 'cacheWrite', label: '缓存写入', color: '#f1c40f' },
+        { key: 'output', label: '输出', color: '#2e9e63' },
+      ];
+      const valueOf = (model) => (metric === 'requests' ? model.requests || 0 : usageTotalTokens(model.tokens));
+      const max = Math.max(...list.map(valueOf), 1);
+      return h('div', null,
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7 } },
+          list.map((model) => {
+            const value = valueOf(model);
+            const tokens = model.tokens || {};
+            return h('div', { key: model.model, style: { display: 'flex', alignItems: 'center', gap: 10 } },
+              h('span', { style: { width: 150, fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, model.model),
+              metric === 'requests'
+                ? h('div', { style: { flex: '1 1 auto', height: 10, borderRadius: 3, background: 'rgba(0,0,0,.05)', overflow: 'hidden' } },
+                    h('div', { style: { width: (value / max) * 100 + '%', height: '100%', background: modelColor(model.model, modelColors) } }))
+                : h('div', { style: { flex: '1 1 auto', height: 10, borderRadius: 3, background: 'rgba(0,0,0,.05)', overflow: 'hidden', display: 'flex' } },
+                    segments.map((segment) => h('div', { key: segment.key, style: { width: ((tokens[segment.key] || 0) / max) * 100 + '%', height: '100%', background: segment.color } }))),
+              h('span', { style: { width: 110, textAlign: 'right', fontSize: 11.5, fontVariantNumeric: 'tabular-nums' } },
+                metric === 'requests' ? fmtNumberCn(value) + ' 次' : fmtNumberCn(value)));
+          })),
+        metric === 'requests'
+          ? null
+          : h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8, fontSize: 10.5, color: MUTED } },
+              segments.map((segment) => h('span', { key: segment.key, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
+                h('i', { style: { width: 8, height: 8, borderRadius: 2, background: segment.color, display: 'inline-block' } }), segment.label))));
+    }
+
+    function UsageModelPicker({ models, selected, onChange }) {
+      const [open, setOpen] = React.useState(false);
+      const allSelected = selected === 'all';
+      const count = allSelected ? models.length : selected.length;
+      const isChecked = (name) => allSelected || selected.includes(name);
+      const toggle = (name) => {
+        if (allSelected) {
+          onChange(models.filter((item) => item !== name));
+          return;
+        }
+        const next = selected.includes(name) ? selected.filter((item) => item !== name) : selected.concat(name);
+        onChange(next.length === 0 ? 'all' : next);
+      };
+      return h('div', { style: { position: 'relative' } },
+        h('button', {
+          type: 'button',
+          onClick: () => setOpen(!open),
+          style: { fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit', cursor: 'pointer' },
+        }, (allSelected ? '全部模型（' + models.length + '）' : '已选 ' + count + ' 个模型') + ' ▾'),
+        open
+          ? h('div', {
+              style: {
+                position: 'absolute', zIndex: 10, top: '112%', left: 0, width: 270, maxHeight: 280, overflowY: 'auto',
+                background: 'var(--dsw-alias-bg-layer-1, #fff)', color: 'inherit',
+                border: '1px solid rgba(0,0,0,.15)', borderRadius: 8, boxShadow: '0 10px 26px rgba(0,0,0,.18)', padding: 8,
+              },
+            },
+              h('div', { style: { display: 'flex', gap: 8, marginBottom: 6, fontSize: 11 } },
+                h('button', { type: 'button', onClick: () => onChange('all'), style: { border: 'none', background: 'transparent', color: '#2f6fed', cursor: 'pointer', padding: 0 } }, '全选'),
+                h('button', { type: 'button', onClick: () => onChange(models.slice(0, 1)), style: { border: 'none', background: 'transparent', color: MUTED, cursor: 'pointer', padding: 0 } }, '只留第一个'),
+                h('button', { type: 'button', onClick: () => setOpen(false), style: { marginLeft: 'auto', border: 'none', background: 'transparent', color: MUTED, cursor: 'pointer', padding: 0 } }, '关闭')),
+              models.map((name) => h('label', { key: name, style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, padding: '3px 0', cursor: 'pointer' } },
+                h('input', { type: 'checkbox', checked: isChecked(name), onChange: () => toggle(name), style: { margin: 0 } }),
+                h('span', { style: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, name))))
+          : null);
     }
 
     const usagePanelStyles = {
@@ -828,13 +943,43 @@ window.__ModuleLoader__.load({
         }));
     }
 
+    function useUsage(rangeKey, custom, mode) {
+      const [state, setState] = React.useState({ status: 'loading' });
+      const [tick, setTick] = React.useState(0);
+      React.useEffect(() => {
+        let alive = true;
+        const win = rangeKey === 'custom' && custom ? custom : rangeOf(rangeKey);
+        const query = '/api/precise-billing/usage?from=' + win.from + '&to=' + win.to + '&mode=' + mode;
+        fetch(query, { cache: 'no-store' })
+          .then((res) => res.json())
+          .then((data) => {
+            if (alive) setState({ status: 'ok', data });
+          })
+          .catch((error) => {
+            if (alive) setState({ status: 'error', error: String((error && error.message) || error) });
+          });
+        return () => {
+          alive = false;
+        };
+      }, [rangeKey, custom && custom.from, custom && custom.to, mode, tick]);
+      return [state, () => setTick((x) => x + 1)];
+    }
+
+    const AUTO_REFRESH_OPTIONS = [[0, '不自动刷新'], [15, '15 秒'], [30, '30 秒'], [60, '1 分钟'], [300, '5 分钟']];
+
     function UsagePanel(props) {
       const open = useUsageOpen();
       const [tab, setTab] = React.useState('trend');
       const [rangeKey, setRangeKey] = React.useState('today');
+      const [customFrom, setCustomFrom] = React.useState(isoDate(new Date()));
+      const [customTo, setCustomTo] = React.useState(isoDate(new Date()));
+      const [appliedCustom, setAppliedCustom] = React.useState(null);
       const [mode, setMode] = React.useState('official');
-      const [model, setModel] = React.useState('all');
-      const [state, reload] = useUsage(open ? rangeKey : 'today', mode, model);
+      const [selectedModels, setSelectedModels] = React.useState('all');
+      const [chartMode, setChartMode] = React.useState('trend');
+      const [metric, setMetric] = React.useState('tokens');
+      const [autoSec, setAutoSec] = React.useState(0);
+      const [state, reload] = useUsage(open ? rangeKey : 'today', appliedCustom, mode);
 
       React.useEffect(() => {
         if (!open) return undefined;
@@ -845,16 +990,33 @@ window.__ModuleLoader__.load({
         return () => window.removeEventListener('keydown', onKey);
       }, [open]);
 
+      React.useEffect(() => {
+        if (!open || !autoSec) return undefined;
+        const timer = setInterval(() => reload(), autoSec * 1000);
+        return () => clearInterval(timer);
+      }, [open, autoSec]);
+
       if (!open || !ReactDOM || typeof document === 'undefined') return null;
 
-      const data = state.status === 'ok' ? applyLocalSplit(state.data) : undefined;
+      const raw = state.status === 'ok' ? state.data : undefined;
+      const rawModels = ((raw && raw.totals && raw.totals.models) || []).map((item) => item.model);
+      const filtered = filterUsageByModels(raw, selectedModels === 'all' ? null : selectedModels);
+      const data = applyLocalSplit(filtered);
       const totals = (data && data.totals) || { tokens: {}, cost: 0, peakCost: 0, offPeakCost: 0, requests: 0, models: [] };
       const tokens = totals.tokens || {};
       const hit = usageHitRate(tokens);
-      const modelOptions = ['all'].concat(((data && totals.models) || []).map((m) => m.model));
+      const modelNames = (totals.models || []).map((item) => item.model);
       const balance = (props && props.account && props.account.logged && props.account.balance) || (data && data.balance && data.balance.balance);
       const loading = state.status === 'loading';
       const errorText = state.status === 'error' ? state.error : data && data.error === 'not-logged' ? '未检测到 DeepSeek 账号，官方数据不可用' : undefined;
+      const calendarModel = selectedModels === 'all' ? 'all' : selectedModels.length === 1 ? selectedModels[0] : 'all';
+
+      const toggleStyle = (active) => ({
+        padding: '4px 10px', fontSize: 11.5, border: 'none', cursor: 'pointer',
+        background: active ? 'rgba(47,111,237,.12)' : 'transparent',
+        color: active ? '#2f6fed' : 'inherit', fontWeight: active ? 600 : 400,
+      });
+      const groupStyle = { display: 'inline-flex', border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, overflow: 'hidden' };
 
       return ReactDOM.createPortal(
         h('div', { style: usagePanelStyles.overlay, onMouseDown: (event) => { if (event.target === event.currentTarget) setUsageOpen(false); } },
@@ -864,19 +1026,21 @@ window.__ModuleLoader__.load({
                 h('div', { style: { fontSize: 14, fontWeight: 700 } }, '用量看板'),
                 h('div', { style: { fontSize: 11, color: MUTED } }, 'Tokens ' + fmtNumberCn(usageTotalTokens(tokens)) + ' · 消费 ' + fmtMoneyCn(totals.cost))),
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-                h('button', { type: 'button', onClick: () => reload(), title: '刷新', style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.16)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '刷新'),
-                h('button', { type: 'button', onClick: () => setUsageOpen(false), title: '关闭', style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.16)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '关闭'))),
+                h('select', {
+                  value: autoSec,
+                  onChange: (event) => setAutoSec(Number(event.target.value)),
+                  title: '自动刷新',
+                  style: { fontSize: 11.5, padding: '5px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' },
+                }, AUTO_REFRESH_OPTIONS.map(([value, label]) => h('option', { key: value, value }, label))),
+                h('button', { type: 'button', onClick: () => reload(), style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.16)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '刷新'),
+                h('button', { type: 'button', onClick: () => setUsageOpen(false), style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.16)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '关闭'))),
             h('div', { style: usagePanelStyles.tabs },
               ['trend', 'calendar'].map((key) => h('button', {
                 key,
                 type: 'button',
                 onClick: () => setTab(key),
                 style: {
-                  padding: '10px 2px',
-                  fontSize: 12.5,
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
+                  padding: '10px 2px', fontSize: 12.5, border: 'none', background: 'transparent', cursor: 'pointer',
                   color: tab === key ? 'var(--dsw-alias-label-primary, #111)' : MUTED,
                   borderBottom: tab === key ? '2px solid #2f6fed' : '2px solid transparent',
                   fontWeight: tab === key ? 700 : 400,
@@ -888,39 +1052,65 @@ window.__ModuleLoader__.load({
                     value: rangeKey,
                     onChange: (event) => setRangeKey(event.target.value),
                     style: { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' },
-                  }, USAGE_RANGES.map((item) => h('option', { key: item.value, value: item.value }, item.label)))
+                  }, USAGE_RANGES.concat([{ value: 'custom', label: '自定义' }]).map((item) => h('option', { key: item.value, value: item.value }, item.label)))
                 : null,
-              h('div', { style: { display: 'inline-flex', border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, overflow: 'hidden' } },
+              tab === 'trend' && rangeKey === 'custom'
+                ? h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5 } },
+                    h('input', { type: 'date', value: customFrom, onChange: (event) => setCustomFrom(event.target.value), style: { fontSize: 11.5, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' } }),
+                    h('span', null, '~'),
+                    h('input', { type: 'date', value: customTo, onChange: (event) => setCustomTo(event.target.value), style: { fontSize: 11.5, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' } }),
+                    h('button', {
+                      type: 'button',
+                      onClick: () => setAppliedCustom({ from: customFrom, to: customTo < customFrom ? customFrom : customTo }),
+                      style: { fontSize: 11.5, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(47,111,237,.45)', color: '#2f6fed', background: 'transparent', cursor: 'pointer' },
+                    }, '应用'))
+                : null,
+              h('div', { style: groupStyle },
                 ['official', 'local'].map((key) => h('button', {
                   key,
                   type: 'button',
                   onClick: () => setMode(key),
-                  style: { padding: '5px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: mode === key ? 'rgba(47,111,237,.12)' : 'transparent', color: mode === key ? '#2f6fed' : 'inherit', fontWeight: mode === key ? 600 : 400 },
+                  style: toggleStyle(mode === key),
                 }, key === 'official' ? '官方' : '本地'))),
-              h('select', {
-                value: model,
-                onChange: (event) => setModel(event.target.value),
-                style: { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' },
-              }, ['all'].concat(modelOptions.filter((name) => name !== 'all')).map((name) => h('option', { key: name, value: name }, name === 'all' ? '全部模型' : name))),
+              h(UsageModelPicker, { models: rawModels, selected: selectedModels, onChange: setSelectedModels }),
               loading ? h('span', { style: { fontSize: 11, color: MUTED } }, '加载中…') : null,
               errorText ? h('span', { style: { fontSize: 11, color: '#c0392b' } }, errorText) : null),
+            mode === 'official'
+              ? h('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11, color: MUTED, padding: '0 16px 4px' } },
+                  h('span', null, '本地用量合计 ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtMoneyCn((data && data.localTotals && data.localTotals.cost) || 0))),
+                  h('span', null, '官方账单合计 ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtMoneyCn(totals.cost))),
+                  data && data.peakSplit === false ? h('span', null, '峰/闲取自本地日志') : null)
+              : null,
             h('div', { style: usagePanelStyles.body },
               h('div', { style: usagePanelStyles.cards },
                 h(UsageStatCard, { label: 'Tokens', value: fmtNumberCn(usageTotalTokens(tokens)), hint: '命中率 ' + (hit * 100).toFixed(2) + '%' }),
-                h(UsageStatCard, { label: 'API 请求次数', value: fmtNumberCn(totals.requests) + ' 次', hint: (mode === 'official' ? '官方请求统计' : '本地会话统计') }),
-                h(UsageStatCard, { label: '消费金额', value: fmtMoneyCn(totals.cost), hint: '峰 ' + fmtMoneyCn(totals.peakCost) + ' · 闲 ' + fmtMoneyCn(totals.offPeakCost) + (data && data.peakSplit === false ? '（本地拆分）' : '') }),
+                h(UsageStatCard, { label: 'API 请求次数', value: fmtNumberCn(totals.requests) + ' 次', hint: mode === 'official' ? '官方请求统计' : '本地会话统计' }),
+                h(UsageStatCard, { label: '消费金额', value: fmtMoneyCn(totals.cost), hint: '峰 ' + fmtMoneyCn(totals.peakCost) + ' · 闲 ' + fmtMoneyCn(totals.offPeakCost) }),
                 h(UsageStatCard, { label: '余额', value: balance === undefined ? '—' : fmtMoneyCn(balance), hint: '官方账户余额' })),
               tab === 'trend'
                 ? h('div', null,
                     h('div', { style: usagePanelStyles.section },
-                      h('div', { style: usagePanelStyles.sectionTitle }, '各模型消费金额'),
-                      h(UsageModelBars, { models: totals.models })),
+                      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 } },
+                        h('div', { style: usagePanelStyles.sectionTitle }, '各模型消费金额'),
+                        h('div', { style: groupStyle },
+                          h('button', { type: 'button', onClick: () => setChartMode('trend'), style: toggleStyle(chartMode === 'trend') }, '趋势'),
+                          h('button', { type: 'button', onClick: () => setChartMode('total'), style: toggleStyle(chartMode === 'total') }, '综合'))),
+                      chartMode === 'trend'
+                        ? h(UsageModelTrendChart, { days: data && data.days, models: modelNames })
+                        : h(UsageModelBars, { models: totals.models })),
+                    h('div', { style: usagePanelStyles.section },
+                      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 } },
+                        h('div', { style: usagePanelStyles.sectionTitle }, '各模型 Token 用量'),
+                        h('div', { style: groupStyle },
+                          h('button', { type: 'button', onClick: () => setMetric('tokens'), style: toggleStyle(metric === 'tokens') }, 'Token 数'),
+                          h('button', { type: 'button', onClick: () => setMetric('requests'), style: toggleStyle(metric === 'requests') }, '请求数'))),
+                      h(UsageTokenBreakdown, { models: totals.models, metric, modelColors: modelNames })),
                     h('div', { style: usagePanelStyles.section },
                       h('div', { style: usagePanelStyles.sectionTitle }, '按日消费（峰 / 闲）'),
                       h(UsageDailyChart, { days: data && data.days })))
                 : h('div', { style: usagePanelStyles.section },
                     h('div', { style: usagePanelStyles.sectionTitle }, '用量日历'),
-                    h(UsageCalendar, { mode, model }))))), document.body);
+                    h(UsageCalendar, { mode, model: calendarModel }))))), document.body);
     }
 
     function useUsageWindow(from, to, mode, model, enabled) {
