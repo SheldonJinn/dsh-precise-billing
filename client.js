@@ -1209,12 +1209,10 @@ window.__ModuleLoader__.load({
       }
       if (dim === 'week') {
         const year = anchor.year;
-        const startMonth = anchor.month <= 6 ? 1 : 7;
         const byDate = {};
         for (const day of days || []) byDate[day.date] = day;
         const rows = [];
-        for (let offset = 0; offset < 6; offset += 1) {
-          const month = startMonth + offset;
+        for (let month = 1; month <= 12; month += 1) {
           const monthKey = String(month).padStart(2, '0');
           const count = new Date(year, month, 0).getDate();
           const chunks = [];
@@ -1247,7 +1245,7 @@ window.__ModuleLoader__.load({
           matrix: true,
           rows,
           columns: Math.max(...rows.map((row) => row.cells.length)),
-          title: year + ' 年 ' + (startMonth === 1 ? '上半年' : '下半年') + ' · ' + startMonth + '-' + (startMonth + 5) + ' 月',
+          title: year + ' 年 · 全年 1-12 月',
         };
       }
       const map = {};
@@ -1271,6 +1269,7 @@ window.__ModuleLoader__.load({
       const [anchor, setAnchor] = React.useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
       const [detail, setDetail] = React.useState(null);
       const [hoverKey, setHoverKey] = React.useState(null);
+      const weekRef = React.useRef(null);
 
       let from;
       let to;
@@ -1281,9 +1280,8 @@ window.__ModuleLoader__.load({
         from = anchor.year + '-01-01';
         to = anchor.year + '-12-31';
       } else {
-        const halfStart = anchor.month <= 6 ? 1 : 7;
-        from = isoDate(new Date(anchor.year, halfStart - 1, 1));
-        to = isoDate(new Date(anchor.year, halfStart + 5, 0));
+        from = anchor.year + '-01-01';
+        to = anchor.year + '-12-31';
       }
 
       const [state, reload] = useUsageWindow(from, to, mode, model, true);
@@ -1293,6 +1291,12 @@ window.__ModuleLoader__.load({
       for (const day of (data && data.localDays) || []) localMap[day.date] = day;
       if (mode === 'local') for (const day of days) localMap[day.date] = day;
       const officialNeedsLocal = mode === 'official' && data && data.peakSplit === false;
+
+      React.useEffect(() => {
+        if (dim !== 'week') return;
+        const node = weekRef.current;
+        if (node && typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, [dim, anchor.year, state.status]);
       const calendar = buildCalendar(days, localMap, dim, anchor, todayKey, officialNeedsLocal);
       const allCells = (calendar.matrix ? calendar.rows.flatMap((row) => row.cells) : calendar.cells).filter(Boolean);
       const maxTokens = Math.max(...allCells.map((cell) => cell.tokens), 1);
@@ -1311,10 +1315,7 @@ window.__ModuleLoader__.load({
         } else if (dim === 'month') {
           setAnchor({ year: anchor.year + delta, month: anchor.month });
         } else {
-          let month = anchor.month + delta * 6;
-          let year = anchor.year + Math.floor((month - 1) / 12);
-          month = ((month - 1 + 12) % 12) + 1;
-          setAnchor({ year, month: month <= 6 ? 1 : 7 });
+          setAnchor({ year: anchor.year + delta, month: anchor.month });
         }
         setDetail(null);
       };
@@ -1332,7 +1333,8 @@ window.__ModuleLoader__.load({
           minHeight: 58,
           padding: '5px 6px',
           borderRadius: 6,
-          border: isToday ? '1px solid #2f6fed' : '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
+          border: isToday ? '2px solid #2f6fed' : '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
+          boxShadow: isToday ? '0 0 0 2px rgba(47,111,237,.18)' : undefined,
           background: 'rgba(47,111,237,' + [0, 0.05, 0.1, 0.17, 0.25][level] + ')',
           cursor: 'pointer',
           transition: 'transform .08s ease, box-shadow .08s ease',
@@ -1347,7 +1349,8 @@ window.__ModuleLoader__.load({
 
       const cellNode = (cell) => h('div', {
         key: cell.key,
-        style: cellStyle(cell),
+        ref: cell.isToday ? weekRef : undefined,
+        style: { ...cellStyle(cell), width: '100%' },
         onMouseEnter: () => setHoverKey(cell.key),
         onMouseLeave: () => setHoverKey(null),
         onClick: () => setDetail(cell),
@@ -1393,16 +1396,28 @@ window.__ModuleLoader__.load({
               weekday.map((name) => h('div', { key: name, style: { fontSize: 10.5, color: MUTED, textAlign: 'center' } }, name)))
           : null,
         calendar.matrix
-          ? h('div', { style: { display: 'grid', gridTemplateColumns: '52px repeat(' + calendar.columns + ', minmax(0, 1fr))', gap: 4 } },
-              h('div', { key: 'corner' }),
-              Array.from({ length: calendar.columns }, (_, index) => h('div', { key: 'head-' + index, style: { fontSize: 10.5, color: MUTED, textAlign: 'center' } }, '第' + (index + 1) + '周')),
-              calendar.rows.map((row) => [
-                h('div', { key: 'label-' + row.label, style: { fontSize: 11, color: MUTED, display: 'flex', alignItems: 'center' } }, row.label),
-                ...Array.from({ length: calendar.columns }, (_, index) => {
+          ? h('div', { style: { display: 'flex', flexDirection: 'column', border: '1px solid rgba(0,0,0,.08)', borderRadius: 8, overflow: 'hidden' } },
+              h('div', { style: { display: 'flex', gap: 4, padding: '6px 8px', background: 'rgba(0,0,0,.035)' } },
+                h('div', { key: 'corner', style: { width: 52, flex: '0 0 52px' } }),
+                Array.from({ length: calendar.columns }, (_, index) => h('div', { key: 'head-' + index, style: { flex: '1 1 0', fontSize: 10.5, color: MUTED, textAlign: 'center' } }, '第' + (index + 1) + '周'))),
+              calendar.rows.map((row, rowIndex) => h('div', {
+                key: 'row-' + row.label,
+                style: {
+                  display: 'flex',
+                  gap: 4,
+                  padding: '4px 8px',
+                  alignItems: 'stretch',
+                  borderTop: rowIndex > 0 ? '1px solid rgba(0,0,0,.07)' : undefined,
+                  background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.018)' : 'transparent',
+                },
+              },
+                h('div', { key: 'label-' + row.label, style: { width: 52, flex: '0 0 52px', fontSize: 11, color: MUTED, display: 'flex', alignItems: 'center' } }, row.label),
+                Array.from({ length: calendar.columns }, (_, index) => {
                   const cell = row.cells[index];
-                  return cell ? cellNode(cell) : h('div', { key: 'empty-' + row.label + '-' + index });
-                }),
-              ]))
+                  return cell
+                    ? h('div', { key: cell.key, style: { flex: '1 1 0', minWidth: 0 } }, cellNode(cell))
+                    : h('div', { key: 'empty-' + row.label + '-' + index, style: { flex: '1 1 0' } });
+                }))))
           : h('div', { style: { display: 'grid', gridTemplateColumns: columns, gap: 4 } },
               calendar.cells.map((cell, index) => (cell ? cellNode(cell) : h('div', { key: 'blank-' + index }))),
             ),
