@@ -1025,6 +1025,8 @@ export async function usageOfficial(ctx, from, to) {
   const modelOf = (list, name) => list[name] ?? (list[name] = { requests: 0, cost: 0, peakCost: 0, offPeakCost: 0, tokens: zeroTokens() });
 
   const amountBody = amountRes?.data?.data?.biz_data ?? amountRes?.data?.biz_data ?? {};
+  const bucketSize = Number(amountBody.bucket) || 3600;
+  const canSplit = bucketSize <= 3600;
   for (const series of Array.isArray(amountBody.series) ? amountBody.series : []) {
     const model = series?.model ? String(series.model) : 'unknown';
     for (const bucket of Array.isArray(series?.buckets) ? series.buckets : []) {
@@ -1069,29 +1071,33 @@ export async function usageOfficial(ctx, from, to) {
         const ms = time * 1000;
         const date = beijingDateKey(ms);
         if (date < from || date > to) continue;
-        const peak = isPeak(ms);
+        const peak = canSplit ? isPeak(ms) : false;
         const key = hourKeyOf(ms);
         const day = dayOf(date);
         const hour = hourOf(key);
         day.cost += cost;
         hour.cost += cost;
-        if (peak) {
-          day.peakCost += cost;
-          hour.peakCost += cost;
-        } else {
-          day.offPeakCost += cost;
-          hour.offPeakCost += cost;
+        if (canSplit) {
+          if (peak) {
+            day.peakCost += cost;
+            hour.peakCost += cost;
+          } else {
+            day.offPeakCost += cost;
+            hour.offPeakCost += cost;
+          }
         }
         const dm = modelOf(day.models, model);
         const gm = modelOf(models, model);
         dm.cost += cost;
         gm.cost += cost;
-        if (peak) {
-          dm.peakCost += cost;
-          gm.peakCost += cost;
-        } else {
-          dm.offPeakCost += cost;
-          gm.offPeakCost += cost;
+        if (canSplit) {
+          if (peak) {
+            dm.peakCost += cost;
+            gm.peakCost += cost;
+          } else {
+            dm.offPeakCost += cost;
+            gm.offPeakCost += cost;
+          }
         }
       }
     }
@@ -1108,10 +1114,14 @@ export async function usageOfficial(ctx, from, to) {
   totals.models = Object.entries(models).map(([model, value]) => ({ model, ...value }));
 
   const account = await readAccount(ctx).catch(() => undefined);
+  const local = usageLocal(from, to);
   return {
     mode: 'official',
     from,
     to,
+    peakSplit: canSplit,
+    localDays: local.days,
+    localTotals: local.totals,
     days: Object.entries(days)
       .sort(([a], [b]) => (a < b ? -1 : 1))
       .map(([date, value]) => ({ date, ...value, models: Object.entries(value.models).map(([model, m]) => ({ model, ...m })) })),

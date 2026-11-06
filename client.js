@@ -888,7 +888,248 @@ window.__ModuleLoader__.load({
                       h(UsageDailyChart, { days: data && data.days })))
                 : h('div', { style: usagePanelStyles.section },
                     h('div', { style: usagePanelStyles.sectionTitle }, '用量日历'),
-                    h('div', { style: { fontSize: 12, color: MUTED } }, '日历视图下一步实现（按日 / 按周 / 按月，每格显示 tokens、总费用、峰时/闲时费用）。'))))), document.body);
+                    h(UsageCalendar, { mode, model }))))), document.body);
+    }
+
+    function useUsageWindow(from, to, mode, model, enabled) {
+      const [state, setState] = React.useState({ status: 'loading' });
+      const [tick, setTick] = React.useState(0);
+      React.useEffect(() => {
+        if (!enabled) return undefined;
+        let alive = true;
+        let query = '/api/precise-billing/usage?from=' + from + '&to=' + to + '&mode=' + mode;
+        if (model && model !== 'all') query += '&model=' + encodeURIComponent(model);
+        fetch(query, { cache: 'no-store' })
+          .then((res) => res.json())
+          .then((payload) => {
+            if (alive) setState({ status: 'ok', data: payload });
+          })
+          .catch((error) => {
+            if (alive) setState({ status: 'error', error: String((error && error.message) || error) });
+          });
+        return () => {
+          alive = false;
+        };
+      }, [from, to, mode, model, tick, enabled]);
+      return [state, () => setTick((x) => x + 1)];
+    }
+
+    function startOfWeek(date) {
+      const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const offset = (day.getDay() + 6) % 7;
+      day.setDate(day.getDate() - offset);
+      return day;
+    }
+
+    function weekNumber(date) {
+      const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      target.setDate(target.getDate() + 3 - ((target.getDay() + 6) % 7));
+      const firstThursday = new Date(target.getFullYear(), 0, 4);
+      firstThursday.setDate(firstThursday.getDate() + 3 - ((firstThursday.getDay() + 6) % 7));
+      return 1 + Math.round((target - firstThursday) / (7 * 86400000));
+    }
+
+    function mdShort(dateKey) {
+      const parts = String(dateKey).split('-');
+      return parts.length === 3 ? parts[1] + '/' + parts[2] : String(dateKey);
+    }
+
+    function emptyCell(key, label, sub) {
+      return { key, label, sub, tokens: 0, cost: 0, peakCost: 0, offPeakCost: 0, requests: 0, models: [], dates: [] };
+    }
+
+    function addCellUsage(cell, day, useLocalSplit) {
+      const peak = useLocalSplit ? day.localPeakCost ?? 0 : day.peakCost ?? 0;
+      const off = useLocalSplit ? day.localOffPeakCost ?? 0 : day.offPeakCost ?? 0;
+      const total = useLocalSplit ? (peak + off) || day.cost || 0 : day.cost ?? 0;
+      cell.tokens += usageTotalTokens(day.tokens || {});
+      cell.cost += total;
+      cell.peakCost += peak;
+      cell.offPeakCost += off;
+      cell.requests += day.requests || 0;
+      for (const model of day.models || []) {
+        const hit = cell.models.find((item) => item.model === model.model);
+        if (hit) {
+          hit.cost += model.cost || 0;
+          hit.tokens += usageTotalTokens(model.tokens || {});
+        } else {
+          cell.models.push({ model: model.model, cost: model.cost || 0, tokens: usageTotalTokens(model.tokens || {}) });
+        }
+      }
+      cell.dates.push(day.date);
+    }
+
+    function buildCalendar(days, localMap, dim, anchor, todayKey, officialNeedsLocal) {
+      const byDate = {};
+      for (const day of days || []) byDate[day.date] = day;
+      const cells = [];
+      if (dim === 'day') {
+        const first = new Date(anchor.year, anchor.month - 1, 1);
+        const lead = (first.getDay() + 6) % 7;
+        const count = new Date(anchor.year, anchor.month, 0).getDate();
+        for (let i = 0; i < lead; i += 1) cells.push(null);
+        for (let d = 1; d <= count; d += 1) {
+          const key = anchor.year + '-' + String(anchor.month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+          const cell = emptyCell(key, String(d), key === todayKey ? '今天' : '');
+          const day = byDate[key];
+          if (day) {
+            const local = localMap[key];
+            const merged = { ...day };
+            if (officialNeedsLocal && local) {
+              merged.localPeakCost = local.peakCost;
+              merged.localOffPeakCost = local.offPeakCost;
+            }
+            addCellUsage(cell, merged, officialNeedsLocal);
+          }
+          cells.push(cell);
+        }
+        return { cells, title: anchor.year + ' 年 ' + anchor.month + ' 月' };
+      }
+      if (dim === 'week') {
+        const map = {};
+        for (const day of days || []) {
+          const monday = startOfWeek(new Date(day.date + 'T00:00:00'));
+          const key = isoDate(monday);
+          const cell = map[key] ?? (map[key] = emptyCell(key, 'W' + String(weekNumber(monday)).padStart(2, '0'), mdShort(key) + '–' + mdShort(isoDate(addDays(monday, 6)))));
+          const local = localMap[day.date];
+          addCellUsage(cell, { ...day, localPeakCost: local?.peakCost, localOffPeakCost: local?.offPeakCost }, true);
+        }
+        return { cells: Object.values(map).sort((a, b) => (a.key < b.key ? -1 : 1)), title: '周视图（近 13 周）' };
+      }
+      const map = {};
+      for (let m = 1; m <= 12; m += 1) {
+        const key = anchor.year + '-' + String(m).padStart(2, '0');
+        map[key] = emptyCell(key, m + ' 月', '');
+      }
+      for (const day of days || []) {
+        const key = day.date.slice(0, 7);
+        if (!map[key]) continue;
+        const local = localMap[day.date];
+        addCellUsage(map[key], { ...day, localPeakCost: local?.peakCost, localOffPeakCost: local?.offPeakCost }, true);
+      }
+      return { cells: Object.values(map), title: anchor.year + ' 年' };
+    }
+
+    function UsageCalendar({ mode, model }) {
+      const today = new Date();
+      const todayKey = isoDate(today);
+      const [dim, setDim] = React.useState('day');
+      const [anchor, setAnchor] = React.useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
+      const [detail, setDetail] = React.useState(null);
+
+      let from;
+      let to;
+      if (dim === 'day') {
+        from = isoDate(new Date(anchor.year, anchor.month - 1, 1));
+        to = isoDate(new Date(anchor.year, anchor.month, 0));
+      } else if (dim === 'month') {
+        from = anchor.year + '-01-01';
+        to = anchor.year + '-12-31';
+      } else {
+        const end = new Date(anchor.year, anchor.month, 0);
+        from = isoDate(addDays(end, -90));
+        to = isoDate(end);
+      }
+
+      const [state, reload] = useUsageWindow(from, to, mode, model, true);
+      const data = state.status === 'ok' ? state.data : undefined;
+      const days = (data && data.days) || [];
+      const localMap = {};
+      for (const day of (data && data.localDays) || []) localMap[day.date] = day;
+      if (mode === 'local') for (const day of days) localMap[day.date] = day;
+      const officialNeedsLocal = mode === 'official' && data && data.peakSplit === false;
+      const calendar = buildCalendar(days, localMap, dim, anchor, todayKey, officialNeedsLocal);
+      const maxTokens = Math.max(...calendar.cells.filter(Boolean).map((cell) => cell.tokens), 1);
+
+      const shift = (delta) => {
+        if (dim === 'day') {
+          const month = anchor.month + delta;
+          const year = anchor.year + Math.floor((month - 1) / 12);
+          setAnchor({ year, month: ((month - 1 + 12) % 12) + 1 });
+        } else if (dim === 'month') {
+          setAnchor({ year: anchor.year + delta, month: anchor.month });
+        } else {
+          const date = new Date(anchor.year, anchor.month - 1 + delta * 3, 1);
+          setAnchor({ year: date.getFullYear(), month: date.getMonth() + 1 });
+        }
+        setDetail(null);
+      };
+
+      const levelOf = (value) => {
+        if (!value) return 0;
+        const q = value / maxTokens;
+        return q > 0.72 ? 4 : q > 0.45 ? 3 : q > 0.18 ? 2 : 1;
+      };
+
+      const cellStyle = (cell) => {
+        const level = levelOf(cell.tokens);
+        const isToday = cell.key === todayKey;
+        return {
+          minHeight: 58,
+          padding: '5px 6px',
+          borderRadius: 6,
+          border: isToday ? '1px solid #2f6fed' : '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
+          background: 'rgba(47,111,237,' + [0, 0.05, 0.1, 0.17, 0.25][level] + ')',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+          minWidth: 0,
+          boxSizing: 'border-box',
+        };
+      };
+
+      const columns = dim === 'day' ? 'repeat(7, minmax(0, 1fr))' : dim === 'month' ? 'repeat(6, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))';
+      const weekday = ['一', '二', '三', '四', '五', '六', '日'];
+
+      return h('div', null,
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 } },
+          h('div', { style: { display: 'inline-flex', border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, overflow: 'hidden' } },
+            [['day', '按日'], ['week', '按周'], ['month', '按月']].map(([value, label]) => h('button', {
+              key: value,
+              type: 'button',
+              onClick: () => { setDim(value); setDetail(null); },
+              style: { padding: '4px 10px', fontSize: 11.5, border: 'none', cursor: 'pointer', background: dim === value ? 'rgba(47,111,237,.12)' : 'transparent', color: dim === value ? '#2f6fed' : 'inherit', fontWeight: dim === value ? 600 : 400 },
+            }, label))),
+          h('button', { type: 'button', onClick: () => shift(-1), style: { padding: '4px 8px', fontSize: 12, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '‹'),
+          h('span', { style: { fontSize: 12.5, fontWeight: 600, minWidth: 110, textAlign: 'center' } }, calendar.title),
+          h('button', { type: 'button', onClick: () => shift(1), style: { padding: '4px 8px', fontSize: 12, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '›'),
+          h('button', { type: 'button', onClick: () => { setAnchor({ year: today.getFullYear(), month: today.getMonth() + 1 }); setDetail(null); }, style: { padding: '4px 8px', fontSize: 11.5, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '今天'),
+          state.status === 'loading' ? h('span', { style: { fontSize: 11, color: MUTED } }, '加载中…') : null,
+          officialNeedsLocal ? h('span', { style: { fontSize: 10.5, color: MUTED } }, '峰/闲取自本地日志（官方按天返回）') : null),
+        dim === 'day'
+          ? h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4, marginBottom: 4 } },
+              weekday.map((name) => h('div', { key: name, style: { fontSize: 10.5, color: MUTED, textAlign: 'center' } }, name)))
+          : null,
+        h('div', { style: { display: 'grid', gridTemplateColumns: columns, gap: 4 } },
+          calendar.cells.map((cell, index) => cell
+            ? h('div', { key: cell.key || 'blank-' + index, style: cellStyle(cell), onClick: () => setDetail(cell) },
+                h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4 } },
+                  h('span', { style: { fontSize: 11, fontWeight: 700 } }, cell.label),
+                  h('span', { style: { fontSize: 10, color: MUTED } }, cell.sub)),
+                h('div', { style: { fontSize: 11.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }, fmtNumberCn(cell.tokens)),
+                h('div', { style: { fontSize: 11, fontVariantNumeric: 'tabular-nums' } }, fmtMoneyCn(cell.cost)),
+                h('div', { style: { fontSize: 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+                  '峰 ' + fmtMoneyCn(cell.peakCost) + ' · 闲 ' + fmtMoneyCn(cell.offPeakCost)))
+            : h('div', { key: 'blank-' + index })),
+        ),
+        detail
+          ? h('div', { style: { marginTop: 10, padding: '10px 12px', border: '1px solid rgba(0,0,0,.1)', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.03))' } },
+              h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 } },
+                h('div', { style: { fontSize: 12.5, fontWeight: 700 } }, detail.label + (detail.sub ? ' · ' + detail.sub : '')),
+                h('button', { type: 'button', onClick: () => setDetail(null), style: { border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: MUTED } }, '关闭')),
+              h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, fontSize: 11.5 } },
+                h('div', null, 'Tokens ', h('b', null, fmtNumberCn(detail.tokens))),
+                h('div', null, '请求 ', h('b', null, fmtNumberCn(detail.requests)), ' 次'),
+                h('div', null, '总额 ', h('b', null, fmtMoneyCn(detail.cost))),
+                h('div', null, '峰 ', h('b', { style: { color: PEAK_COLOR } }, fmtMoneyCn(detail.peakCost)), ' · 闲 ', h('b', { style: { color: OFF_COLOR } }, fmtMoneyCn(detail.offPeakCost)))),
+              detail.models.length > 0
+                ? h('div', { style: { marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 } },
+                    detail.models.slice().sort((a, b) => b.cost - a.cost).map((m) => h('div', { key: m.model, style: { display: 'flex', justifyContent: 'space-between', fontSize: 11.5 } },
+                      h('span', null, m.model),
+                      h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, fmtNumberCn(m.tokens) + ' · ' + fmtMoneyCn(m.cost)))))
+                : null)
+          : null);
     }
 
     function UsageHost(props) {
