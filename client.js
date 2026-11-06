@@ -755,9 +755,7 @@ window.__ModuleLoader__.load({
             slot.total += value;
           }
         }
-        const isToday = dayKey === isoDate(new Date());
-        const maxHour = isToday ? new Date().getHours() : 23;
-        for (let hour = 0; hour <= maxHour; hour += 1) {
+        for (let hour = 0; hour <= 23; hour += 1) {
           const slot = byHour[hour] || { total: 0, parts: {} };
           series.push({ label: String(hour).padStart(2, '0') + ':00', total: slot.total, parts: slot.parts });
         }
@@ -798,7 +796,7 @@ window.__ModuleLoader__.load({
             key: name,
             style: { height: item.total > 0 ? ((item.parts[name] || 0) / item.total) * 100 + '%' : '0%', background: modelColor(name, names) },
           }));
-        const bar = h('div', { style: { width: '55%', maxWidth: 22, minWidth: 3, height: Math.max(1, (item.total / max) * 100) + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: '2px 2px 0 0', overflow: 'hidden' } }, stack);
+        const bar = h('div', { style: { width: '55%', maxWidth: 22, minWidth: 3, height: (item.total > 0 ? Math.max(1, (item.total / max) * 100) : 0) + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: '2px 2px 0 0', overflow: 'hidden' } }, stack);
         return h('div', {
           key: index,
           title: item.label + ' · ' + fmtMoneyCn(item.total),
