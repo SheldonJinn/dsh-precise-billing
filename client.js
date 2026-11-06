@@ -1530,10 +1530,6 @@ window.__ModuleLoader__.load({
           h('span', null, '总额 ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtMoneyCn(calTotals.cost))),
           h('span', null, '峰 ', h('b', { style: { color: PEAK_COLOR } }, fmtMoneyCn(calTotals.peakCost))),
           h('span', null, '闲 ', h('b', { style: { color: OFF_COLOR } }, fmtMoneyCn(calTotals.offPeakCost)))),
-        dim === 'day'
-          ? h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4, marginBottom: 4 } },
-              weekday.map((name) => h('div', { key: name, style: { fontSize: 10.5, color: MUTED, textAlign: 'center' } }, name)))
-          : null,
         calendar.matrix
           ? h('div', { style: { display: 'flex', flexDirection: 'column', border: '1px solid rgba(0,0,0,.08)', borderRadius: 8, overflow: 'hidden' } },
               h('div', { style: { display: 'flex', gap: 4, padding: '6px 8px', marginBottom: 2, borderRadius: 6, background: 'rgba(0,0,0,.06)' } },
@@ -1556,9 +1552,21 @@ window.__ModuleLoader__.load({
                     ? h('div', { key: cell.key, style: { flex: '1 1 0', minWidth: 0 } }, cellNode(cell))
                     : h('div', { key: 'empty-' + row.label + '-' + index, style: { flex: '1 1 0' } });
                 }))))
-          : h('div', { style: { display: 'grid', gridTemplateColumns: columns, gap: 4 } },
-              calendar.cells.map((cell, index) => (cell ? cellNode(cell) : h('div', { key: 'blank-' + index }))),
-            ),
+          : dim === 'day'
+            ? h('div', { style: { display: 'flex', flexDirection: 'column' } },
+                h('div', { style: { display: 'flex', gap: 4, padding: '0 6px 4px' } },
+                  weekday.map((name) => h('div', { key: name, style: { flex: '1 1 0', fontSize: 10.5, color: MUTED, textAlign: 'center' } }, name))),
+                (() => {
+                  const rows = [];
+                  for (let index = 0; index < calendar.cells.length; index += 7) rows.push(calendar.cells.slice(index, index + 7));
+                  return rows.map((row, rowIndex) => h('div', {
+                    key: 'week-' + rowIndex,
+                    style: { display: 'flex', gap: 4, padding: '4px 6px', background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.02)' : 'transparent' },
+                  }, row.map((cell, cellIndex) => h('div', { key: cellIndex, style: { flex: '1 1 0', minWidth: 0 } }, cell ? cellNode(cell) : null))));
+                })())
+            : h('div', { style: { display: 'grid', gridTemplateColumns: columns, gap: 4 } },
+                calendar.cells.map((cell, index) => (cell ? cellNode(cell) : h('div', { key: 'blank-' + index }))),
+              ),
         detail
           ? h('div', { style: { marginTop: 10, padding: '10px 12px', border: '1px solid rgba(0,0,0,.1)', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.03))' } },
               h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 } },
