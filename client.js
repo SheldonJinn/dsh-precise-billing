@@ -779,11 +779,12 @@ window.__ModuleLoader__.load({
       const height = 120;
 
       const yLabels = [4, 3, 2, 1, 0].map((step) =>
-        h('div', { key: step }, fmtMoneyCn((max * step) / 4)));
+        h('div', { key: step }, axisMoney((max * step) / 4)));
 
       const gridLines = [1, 2, 3, 4].map((step) =>
         h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
 
+      const axisMoney = (value) => '¥' + Number(value || 0).toFixed(2);
       const bars = series.map((item, index) => {
         const stack = names
           .filter((name) => item.parts[name])
@@ -791,17 +792,17 @@ window.__ModuleLoader__.load({
             key: name,
             style: { height: item.total > 0 ? ((item.parts[name] || 0) / item.total) * 100 + '%' : '0%', background: modelColor(name, names) },
           }));
-        const bar = h('div', { style: { width: '100%', height: Math.max(1, (item.total / max) * 100) + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: 1, overflow: 'hidden' } }, stack);
+        const bar = h('div', { style: { width: '55%', maxWidth: 22, minWidth: 3, height: Math.max(1, (item.total / max) * 100) + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: '2px 2px 0 0', overflow: 'hidden' } }, stack);
         return h('div', {
           key: index,
           title: item.label + ' · ' + fmtMoneyCn(item.total),
-          style: { flex: '1 1 0', height: '100%', display: 'flex', alignItems: 'flex-end', minWidth: 2 },
+          style: { flex: '1 1 0', height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', minWidth: 2 },
         }, bar);
       });
 
       const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.12)', borderBottom: '1px solid rgba(0,0,0,.12)' } },
         gridLines,
-        h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 2 } }, bars));
+        h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 6 } }, bars));
 
       const xAxis = h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: MUTED, marginTop: 3 } },
         xLabels.map((label, index) => h('span', { key: index }, label)));
