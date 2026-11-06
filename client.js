@@ -588,6 +588,313 @@ window.__ModuleLoader__.load({
       return chip;
     }
 
+    /* ---------------------------------------------------------- 用量面板 -- */
+
+    let usageOpen = false;
+    const usageListeners = new Set();
+
+    function setUsageOpen(value) {
+      usageOpen = value;
+      for (const fn of usageListeners) fn();
+    }
+
+    function useUsageOpen() {
+      const [, force] = React.useState(0);
+      React.useEffect(() => {
+        const fn = () => force((x) => x + 1);
+        usageListeners.add(fn);
+        return () => usageListeners.delete(fn);
+      }, []);
+      return usageOpen;
+    }
+
+    function isoDate(date) {
+      return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+    }
+
+    function addDays(date, days) {
+      const next = new Date(date.getTime());
+      next.setDate(next.getDate() + days);
+      return next;
+    }
+
+    function rangeOf(key) {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (key === 'yesterday') {
+        const day = addDays(startOfDay, -1);
+        return { from: isoDate(day), to: isoDate(day) };
+      }
+      if (key === 'last7') return { from: isoDate(addDays(startOfDay, -6)), to: isoDate(startOfDay) };
+      if (key === 'last30') return { from: isoDate(addDays(startOfDay, -29)), to: isoDate(startOfDay) };
+      if (key === 'thisMonth') {
+        return { from: isoDate(new Date(startOfDay.getFullYear(), startOfDay.getMonth(), 1)), to: isoDate(startOfDay) };
+      }
+      if (key === 'lastMonth') {
+        const first = new Date(startOfDay.getFullYear(), startOfDay.getMonth() - 1, 1);
+        const last = new Date(startOfDay.getFullYear(), startOfDay.getMonth(), 0);
+        return { from: isoDate(first), to: isoDate(last) };
+      }
+      if (key === 'thisYear') {
+        return { from: isoDate(new Date(startOfDay.getFullYear(), 0, 1)), to: isoDate(startOfDay) };
+      }
+      return { from: isoDate(startOfDay), to: isoDate(startOfDay) };
+    }
+
+    const USAGE_RANGES = [
+      { value: 'today', label: '今天' },
+      { value: 'yesterday', label: '昨天' },
+      { value: 'last7', label: '近 7 天' },
+      { value: 'last30', label: '近 30 天' },
+      { value: 'thisMonth', label: '本月' },
+      { value: 'lastMonth', label: '上月' },
+      { value: 'thisYear', label: '今年' },
+    ];
+
+    function usageTotalTokens(tokens) {
+      return (tokens.input || 0) + (tokens.cacheRead || 0) + (tokens.cacheWrite || 0) + (tokens.output || 0);
+    }
+
+    function usageHitRate(tokens) {
+      const hit = (tokens.cacheRead || 0) + (tokens.cacheWrite || 0);
+      const all = usageTotalTokens(tokens);
+      return all > 0 ? hit / all : 0;
+    }
+
+    function fmtNumberCn(value) {
+      const n = Number(value) || 0;
+      if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+      if (n >= 1e4) return (n / 1e4).toFixed(2) + '万';
+      return String(Math.round(n));
+    }
+
+    function fmtMoneyCn(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '—';
+      if (Math.abs(n) >= 1e4) return '¥' + (n / 1e4).toFixed(2) + '万';
+      if (Math.abs(n) >= 1) return '¥' + n.toFixed(2);
+      return '¥' + n.toFixed(4);
+    }
+
+    function useUsage(rangeKey, mode, model) {
+      const [state, setState] = React.useState({ status: 'loading' });
+      const [tick, setTick] = React.useState(0);
+      React.useEffect(() => {
+        let alive = true;
+        const { from, to } = rangeOf(rangeKey);
+        let query = '/api/precise-billing/usage?from=' + from + '&to=' + to + '&mode=' + mode;
+        if (model && model !== 'all') query += '&model=' + encodeURIComponent(model);
+        fetch(query, { cache: 'no-store' })
+          .then((res) => res.json())
+          .then((data) => {
+            if (alive) setState({ status: 'ok', data });
+          })
+          .catch((error) => {
+            if (alive) setState({ status: 'error', error: String((error && error.message) || error) });
+          });
+        return () => {
+          alive = false;
+        };
+      }, [rangeKey, mode, model, tick]);
+      return [state, () => setTick((x) => x + 1)];
+    }
+
+    const usagePanelStyles = {
+      overlay: {
+        position: 'fixed',
+        inset: 0,
+        zIndex: 4000,
+        background: 'rgba(0,0,0,.35)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        boxSizing: 'border-box',
+      },
+      panel: {
+        width: 'min(1060px, 94vw)',
+        height: 'min(86vh, 840px)',
+        background: 'var(--dsw-alias-bg-layer-1, #ffffff)',
+        color: 'var(--dsw-alias-label-primary, #111)',
+        border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12))',
+        borderRadius: 12,
+        boxShadow: '0 18px 48px rgba(0,0,0,.22)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        fontFamily: 'inherit',
+      },
+      header: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        padding: '12px 16px',
+        borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
+      },
+      tabs: { display: 'flex', gap: 18, padding: '0 16px', borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))' },
+      controls: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 16px' },
+      body: { flex: '1 1 auto', overflowY: 'auto', padding: '4px 16px 18px' },
+      cards: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, margin: '10px 0 14px' },
+      card: {
+        padding: '10px 12px',
+        borderRadius: 10,
+        background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.03))',
+        border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.06))',
+        minWidth: 0,
+      },
+      cardLabel: { fontSize: 11, color: MUTED, display: 'flex', alignItems: 'center', gap: 4 },
+      cardValue: { fontSize: 20, fontWeight: 700, marginTop: 4, lineHeight: 1.2 },
+      cardHint: { fontSize: 10.5, color: MUTED, marginTop: 3 },
+      section: {
+        border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
+        borderRadius: 10,
+        padding: '10px 12px',
+        marginBottom: 12,
+        background: 'var(--dsw-alias-bg-layer-1, #fff)',
+      },
+      sectionTitle: { fontSize: 12.5, fontWeight: 600, marginBottom: 8 },
+    };
+
+    function UsageStatCard({ label, value, hint }) {
+      return h('div', { style: usagePanelStyles.card },
+        h('div', { style: usagePanelStyles.cardLabel }, label),
+        h('div', { style: usagePanelStyles.cardValue }, value),
+        hint ? h('div', { style: usagePanelStyles.cardHint }, hint) : null);
+    }
+
+    function UsageModelBars({ models }) {
+      const list = (models || []).slice().sort((a, b) => (b.cost || 0) - (a.cost || 0));
+      if (list.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
+      const max = Math.max(...list.map((m) => m.cost || 0), 0.0001);
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        list.map((m) => h('div', { key: m.model, style: { display: 'flex', alignItems: 'center', gap: 10 } },
+          h('span', { style: { width: 150, fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, m.model),
+          h('div', { style: { flex: '1 1 auto', height: 10, borderRadius: 3, background: 'rgba(0,0,0,.05)', overflow: 'hidden', display: 'flex' } },
+            h('div', { style: { width: ((m.peakCost || 0) / max) * 100 + '%', background: PEAK_COLOR } }),
+            h('div', { style: { width: ((m.offPeakCost || 0) / max) * 100 + '%', background: OFF_COLOR } })),
+          h('span', { style: { width: 92, textAlign: 'right', fontSize: 11.5, fontVariantNumeric: 'tabular-nums' } }, fmtMoneyCn(m.cost)))));
+    }
+
+    function UsageDailyChart({ days }) {
+      const list = (days || []).slice(-31);
+      if (list.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
+      const max = Math.max(...list.map((d) => d.cost || 0), 0.0001);
+      return h('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 4, height: 120, paddingTop: 6 } },
+        list.map((d) => {
+          const total = d.cost || 0;
+          const peak = d.peakCost || 0;
+          const off = d.offPeakCost || 0;
+          const barHeight = Math.max(2, (total / max) * 100);
+          const peakShare = total > 0 ? peak / total : 0;
+          return h('div', {
+            key: d.date,
+            title: d.date + ' · ' + fmtMoneyCn(total) + '（峰 ' + fmtMoneyCn(peak) + ' / 闲 ' + fmtMoneyCn(off) + '）',
+            style: { flex: '1 1 0', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', minWidth: 4 },
+          },
+            h('div', { style: { height: barHeight + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: 2, overflow: 'hidden' } },
+              h('div', { style: { height: peakShare * 100 + '%', background: PEAK_COLOR } }),
+              h('div', { style: { height: (1 - peakShare) * 100 + '%', background: OFF_COLOR } })));
+        }));
+    }
+
+    function UsagePanel(props) {
+      const open = useUsageOpen();
+      const [tab, setTab] = React.useState('trend');
+      const [rangeKey, setRangeKey] = React.useState('today');
+      const [mode, setMode] = React.useState('official');
+      const [model, setModel] = React.useState('all');
+      const [state, reload] = useUsage(open ? rangeKey : 'today', mode, model);
+
+      React.useEffect(() => {
+        if (!open) return undefined;
+        const onKey = (event) => {
+          if (event.key === 'Escape') setUsageOpen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [open]);
+
+      if (!open || !ReactDOM || typeof document === 'undefined') return null;
+
+      const data = state.status === 'ok' ? state.data : undefined;
+      const totals = (data && data.totals) || { tokens: {}, cost: 0, peakCost: 0, offPeakCost: 0, requests: 0, models: [] };
+      const tokens = totals.tokens || {};
+      const hit = usageHitRate(tokens);
+      const modelOptions = ['all'].concat(((data && totals.models) || []).map((m) => m.model));
+      const balance = (props && props.account && props.account.logged && props.account.balance) || (data && data.balance && data.balance.balance);
+      const loading = state.status === 'loading';
+      const errorText = state.status === 'error' ? state.error : data && data.error === 'not-logged' ? '未检测到 DeepSeek 账号，官方数据不可用' : undefined;
+
+      return ReactDOM.createPortal(
+        h('div', { style: usagePanelStyles.overlay, onMouseDown: (event) => { if (event.target === event.currentTarget) setUsageOpen(false); } },
+          h('div', { style: usagePanelStyles.panel },
+            h('div', { style: usagePanelStyles.header },
+              h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
+                h('div', { style: { fontSize: 14, fontWeight: 700 } }, '用量看板'),
+                h('div', { style: { fontSize: 11, color: MUTED } }, 'Tokens ' + fmtNumberCn(usageTotalTokens(tokens)) + ' · 消费 ' + fmtMoneyCn(totals.cost))),
+              h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+                h('button', { type: 'button', onClick: () => reload(), title: '刷新', style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.16)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '刷新'),
+                h('button', { type: 'button', onClick: () => setUsageOpen(false), title: '关闭', style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.16)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '关闭'))),
+            h('div', { style: usagePanelStyles.tabs },
+              ['trend', 'calendar'].map((key) => h('button', {
+                key,
+                type: 'button',
+                onClick: () => setTab(key),
+                style: {
+                  padding: '10px 2px',
+                  fontSize: 12.5,
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: tab === key ? 'var(--dsw-alias-label-primary, #111)' : MUTED,
+                  borderBottom: tab === key ? '2px solid #2f6fed' : '2px solid transparent',
+                  fontWeight: tab === key ? 700 : 400,
+                },
+              }, key === 'trend' ? '用量趋势' : '用量日历'))),
+            h('div', { style: usagePanelStyles.controls },
+              h('select', {
+                value: rangeKey,
+                onChange: (event) => setRangeKey(event.target.value),
+                style: { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' },
+              }, USAGE_RANGES.map((item) => h('option', { key: item.value, value: item.value }, item.label))),
+              h('div', { style: { display: 'inline-flex', border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, overflow: 'hidden' } },
+                ['official', 'local'].map((key) => h('button', {
+                  key,
+                  type: 'button',
+                  onClick: () => setMode(key),
+                  style: { padding: '5px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: mode === key ? 'rgba(47,111,237,.12)' : 'transparent', color: mode === key ? '#2f6fed' : 'inherit', fontWeight: mode === key ? 600 : 400 },
+                }, key === 'official' ? '官方' : '本地'))),
+              h('select', {
+                value: model,
+                onChange: (event) => setModel(event.target.value),
+                style: { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' },
+              }, ['all'].concat(modelOptions.filter((name) => name !== 'all')).map((name) => h('option', { key: name, value: name }, name === 'all' ? '全部模型' : name))),
+              loading ? h('span', { style: { fontSize: 11, color: MUTED } }, '加载中…') : null,
+              errorText ? h('span', { style: { fontSize: 11, color: '#c0392b' } }, errorText) : null),
+            h('div', { style: usagePanelStyles.body },
+              h('div', { style: usagePanelStyles.cards },
+                h(UsageStatCard, { label: 'Tokens', value: fmtNumberCn(usageTotalTokens(tokens)), hint: '命中率 ' + (hit * 100).toFixed(2) + '%' }),
+                h(UsageStatCard, { label: 'API 请求次数', value: fmtNumberCn(totals.requests) + ' 次', hint: (mode === 'official' ? '官方请求统计' : '本地会话统计') }),
+                h(UsageStatCard, { label: '消费金额', value: fmtMoneyCn(totals.cost), hint: '峰 ' + fmtMoneyCn(totals.peakCost) + ' · 闲 ' + fmtMoneyCn(totals.offPeakCost) }),
+                h(UsageStatCard, { label: '余额', value: balance === undefined ? '—' : fmtMoneyCn(balance), hint: '官方账户余额' })),
+              tab === 'trend'
+                ? h('div', null,
+                    h('div', { style: usagePanelStyles.section },
+                      h('div', { style: usagePanelStyles.sectionTitle }, '各模型消费金额'),
+                      h(UsageModelBars, { models: totals.models })),
+                    h('div', { style: usagePanelStyles.section },
+                      h('div', { style: usagePanelStyles.sectionTitle }, '按日消费（峰 / 闲）'),
+                      h(UsageDailyChart, { days: data && data.days })))
+                : h('div', { style: usagePanelStyles.section },
+                    h('div', { style: usagePanelStyles.sectionTitle }, '用量日历'),
+                    h('div', { style: { fontSize: 12, color: MUTED } }, '日历视图下一步实现（按日 / 按周 / 按月，每格显示 tokens、总费用、峰时/闲时费用）。'))))), document.body);
+    }
+
+    function UsageHost(props) {
+      return h(UsagePanel, { account: props && props.account });
+    }
+
     function withSlot(name) {
       return function Wrapped(props) {
         return h(Chip, { ...(props || {}), __slot: name });
@@ -835,6 +1142,14 @@ window.__ModuleLoader__.load({
         style: { position: 'absolute', top: 0, right: 0, border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 1px', color: 'var(--dsw-alias-label-secondary, #666)', fontSize: 12, lineHeight: 1, opacity: 0.45 },
       }, gearIcon(12));
 
+      const chartNode = h('button', {
+        type: 'button',
+        className: 'pb-gear',
+        title: '用量看板',
+        onClick: () => setUsageOpen(true),
+        style: { position: 'absolute', top: 0, right: 18, border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 1px', color: 'var(--dsw-alias-label-secondary, #666)', fontSize: 12, lineHeight: 1, opacity: 0.55 },
+      }, '📊');
+
       const cell = (label, value, full) => h('div', {
         style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 },
       },
@@ -876,7 +1191,7 @@ window.__ModuleLoader__.load({
         ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 1, marginTop: 1 } }, ...detailRows)
         : null;
 
-      return h('div', { title, style: { ...base, gap: 2, padding: '2px 2px 4px' } }, top, barNode, infoNode, detailsNode, gearNode);
+      return h('div', { title, style: { ...base, gap: 2, padding: '2px 2px 4px' } }, top, barNode, infoNode, detailsNode, chartNode, gearNode);
     }
 
     function SidebarCard(props) {
@@ -890,8 +1205,9 @@ window.__ModuleLoader__.load({
       }, []);
       const data = state.data;
       const settings = { ...DEFAULT_SETTINGS, ...(data?.settings || {}) };
-      if (settings.sidebar === false) return null;
-      return buildSidebar(settings, data?.fontFamilies || {}, data, accountState.account, now, props.wide !== false);
+      const host = h(UsageHost, { account: accountState.account });
+      if (settings.sidebar === false) return host;
+      return h(React.Fragment, null, host, buildSidebar(settings, data?.fontFamilies || {}, data, accountState.account, now, props.wide !== false));
     }
 
     /** ------------------------------------------------------------ 设置页 -- */
@@ -1084,6 +1400,11 @@ window.__ModuleLoader__.load({
               onClick: reset,
               style: { fontSize: 11, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.15))', background: 'transparent', color: 'var(--dsw-alias-label-primary, #111)' },
             }, '恢复默认'),
+            h('button', {
+              type: 'button',
+              onClick: () => setUsageOpen(true),
+              style: { padding: '6px 12px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(47,111,237,.45)', color: '#2f6fed', background: 'transparent', cursor: 'pointer' },
+            }, '📊 用量面板'),
             h('button', {
               type: 'button',
               onClick: () => save(),
