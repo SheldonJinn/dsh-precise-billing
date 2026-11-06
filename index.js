@@ -32,7 +32,7 @@ let accountCache = null;
 
 const ZSTD_MAGIC = Buffer.from([0x28, 0xb5, 0x2f, 0xfd]);
 const SHANGHAI_OFFSET_MS = 8 * 3600 * 1000;
-const STORE_VERSION = 4;
+const STORE_VERSION = 5;
 const SUM_TTL_MS = 4000;
 
 const DEFAULT_SETTINGS = {
