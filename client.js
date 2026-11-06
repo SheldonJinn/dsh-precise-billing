@@ -778,13 +778,13 @@ window.__ModuleLoader__.load({
       const max = Math.max.apply(null, series.map((item) => item.total).concat([0.0001]));
       const height = 120;
 
+      const axisMoney = (value) => '¥' + Number(value || 0).toFixed(2);
       const yLabels = [4, 3, 2, 1, 0].map((step) =>
         h('div', { key: step }, axisMoney((max * step) / 4)));
 
       const gridLines = [1, 2, 3, 4].map((step) =>
         h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
 
-      const axisMoney = (value) => '¥' + Number(value || 0).toFixed(2);
       const bars = series.map((item, index) => {
         const stack = names
           .filter((name) => item.parts[name])
@@ -1631,7 +1631,7 @@ window.__ModuleLoader__.load({
     }
 
     function UsageHost(props) {
-      return h(UsagePanel, { account: props && props.account });
+      return h(PageBoundary, null, h(UsagePanel, { account: props && props.account }));
     }
 
     function withSlot(name) {
