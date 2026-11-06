@@ -1018,15 +1018,47 @@ window.__ModuleLoader__.load({
         return { cells, title: anchor.year + ' 年 ' + anchor.month + ' 月' };
       }
       if (dim === 'week') {
-        const map = {};
-        for (const day of days || []) {
-          const monday = startOfWeek(new Date(day.date + 'T00:00:00'));
-          const key = isoDate(monday);
-          const cell = map[key] ?? (map[key] = emptyCell(key, 'W' + String(weekNumber(monday)).padStart(2, '0'), mdShort(key) + '–' + mdShort(isoDate(addDays(monday, 6)))));
-          const local = localMap[day.date];
-          addCellUsage(cell, { ...day, localPeakCost: local?.peakCost, localOffPeakCost: local?.offPeakCost }, true);
+        const year = anchor.year;
+        const startMonth = anchor.month <= 6 ? 1 : 7;
+        const byDate = {};
+        for (const day of days || []) byDate[day.date] = day;
+        const rows = [];
+        for (let offset = 0; offset < 6; offset += 1) {
+          const month = startMonth + offset;
+          const monthKey = String(month).padStart(2, '0');
+          const count = new Date(year, month, 0).getDate();
+          const chunks = [];
+          let chunkStart = 1;
+          for (let d = 2; d <= count; d += 1) {
+            if (new Date(year, month - 1, d).getDay() === 1) {
+              chunks.push([chunkStart, d - 1]);
+              chunkStart = d;
+            }
+          }
+          chunks.push([chunkStart, count]);
+          const cells = chunks.map(([fromDay, toDay], index) => {
+            const cell = emptyCell(year + '-' + monthKey + '-w' + (index + 1), '第' + (index + 1) + '周', month + '/' + fromDay + ' ~ ' + month + '/' + toDay);
+            let touched = false;
+            for (let d = fromDay; d <= toDay; d += 1) {
+              const dateKey = year + '-' + monthKey + '-' + String(d).padStart(2, '0');
+              if (dateKey === todayKey) cell.isToday = true;
+              const day = byDate[dateKey];
+              if (!day) continue;
+              touched = true;
+              const local = localMap[dateKey];
+              addCellUsage(cell, { ...day, localPeakCost: local?.peakCost, localOffPeakCost: local?.offPeakCost }, true);
+            }
+            cell.empty = !touched;
+            return cell;
+          });
+          rows.push({ label: month + ' 月', cells });
         }
-        return { cells: Object.values(map).sort((a, b) => (a.key < b.key ? -1 : 1)), title: '周视图（近 13 周）' };
+        return {
+          matrix: true,
+          rows,
+          columns: Math.max(...rows.map((row) => row.cells.length)),
+          title: year + ' 年 ' + (startMonth === 1 ? '上半年' : '下半年') + ' · ' + startMonth + '-' + (startMonth + 5) + ' 月',
+        };
       }
       const map = {};
       for (let m = 1; m <= 12; m += 1) {
@@ -1059,9 +1091,9 @@ window.__ModuleLoader__.load({
         from = anchor.year + '-01-01';
         to = anchor.year + '-12-31';
       } else {
-        const end = new Date(anchor.year, anchor.month, 0);
-        from = isoDate(addDays(end, -90));
-        to = isoDate(end);
+        const halfStart = anchor.month <= 6 ? 1 : 7;
+        from = isoDate(new Date(anchor.year, halfStart - 1, 1));
+        to = isoDate(new Date(anchor.year, halfStart + 5, 0));
       }
 
       const [state, reload] = useUsageWindow(from, to, mode, model, true);
@@ -1072,8 +1104,9 @@ window.__ModuleLoader__.load({
       if (mode === 'local') for (const day of days) localMap[day.date] = day;
       const officialNeedsLocal = mode === 'official' && data && data.peakSplit === false;
       const calendar = buildCalendar(days, localMap, dim, anchor, todayKey, officialNeedsLocal);
-      const maxTokens = Math.max(...calendar.cells.filter(Boolean).map((cell) => cell.tokens), 1);
-      const calTotals = calendar.cells.filter(Boolean).reduce((acc, cell) => ({
+      const allCells = (calendar.matrix ? calendar.rows.flatMap((row) => row.cells) : calendar.cells).filter(Boolean);
+      const maxTokens = Math.max(...allCells.map((cell) => cell.tokens), 1);
+      const calTotals = allCells.reduce((acc, cell) => ({
         tokens: acc.tokens + cell.tokens,
         cost: acc.cost + cell.cost,
         peakCost: acc.peakCost + cell.peakCost,
@@ -1088,8 +1121,10 @@ window.__ModuleLoader__.load({
         } else if (dim === 'month') {
           setAnchor({ year: anchor.year + delta, month: anchor.month });
         } else {
-          const date = new Date(anchor.year, anchor.month - 1 + delta * 3, 1);
-          setAnchor({ year: date.getFullYear(), month: date.getMonth() + 1 });
+          let month = anchor.month + delta * 6;
+          let year = anchor.year + Math.floor((month - 1) / 12);
+          month = ((month - 1 + 12) % 12) + 1;
+          setAnchor({ year, month: month <= 6 ? 1 : 7 });
         }
         setDetail(null);
       };
@@ -1102,7 +1137,7 @@ window.__ModuleLoader__.load({
 
       const cellStyle = (cell) => {
         const level = levelOf(cell.tokens);
-        const isToday = cell.key === todayKey;
+        const isToday = cell.isToday === true || cell.key === todayKey;
         return {
           minHeight: 58,
           padding: '5px 6px',
@@ -1119,6 +1154,25 @@ window.__ModuleLoader__.load({
           boxSizing: 'border-box',
         };
       };
+
+      const cellNode = (cell) => h('div', {
+        key: cell.key,
+        style: cellStyle(cell),
+        onMouseEnter: () => setHoverKey(cell.key),
+        onMouseLeave: () => setHoverKey(null),
+        onClick: () => setDetail(cell),
+        title: cell.label + (cell.sub ? ' · ' + cell.sub : '') +
+          '\nTokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次' +
+          '\n总额 ' + fmtMoneyCn(cell.cost) +
+          '\n峰 ' + fmtMoneyCn(cell.peakCost) + ' · 闲 ' + fmtMoneyCn(cell.offPeakCost),
+      },
+        h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4 } },
+          h('span', { style: { fontSize: 10.5, fontWeight: 700 } }, cell.label),
+          h('span', { style: { fontSize: 9.5, color: MUTED } }, cell.sub)),
+        h('div', { style: { fontSize: 11.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }, cell.empty ? '—' : fmtNumberCn(cell.tokens)),
+        h('div', { style: { fontSize: 10.5, fontVariantNumeric: 'tabular-nums' } }, fmtMoneyCn(cell.cost)),
+        h('div', { style: { fontSize: 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+          '峰 ' + fmtMoneyCn(cell.peakCost) + ' · 闲 ' + fmtMoneyCn(cell.offPeakCost)));
 
       const columns = dim === 'day' ? 'repeat(7, minmax(0, 1fr))' : dim === 'month' ? 'repeat(6, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))';
       const weekday = ['一', '二', '三', '四', '五', '六', '日'];
@@ -1148,28 +1202,20 @@ window.__ModuleLoader__.load({
           ? h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4, marginBottom: 4 } },
               weekday.map((name) => h('div', { key: name, style: { fontSize: 10.5, color: MUTED, textAlign: 'center' } }, name)))
           : null,
-        h('div', { style: { display: 'grid', gridTemplateColumns: columns, gap: 4 } },
-          calendar.cells.map((cell, index) => cell
-            ? h('div', {
-                key: cell.key || 'blank-' + index,
-                style: cellStyle(cell),
-                onMouseEnter: () => setHoverKey(cell.key),
-                onMouseLeave: () => setHoverKey(null),
-                onClick: () => setDetail(cell),
-                title: cell.label + (cell.sub ? ' · ' + cell.sub : '') +
-                  '\nTokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次' +
-                  '\n总额 ' + fmtMoneyCn(cell.cost) +
-                  '\n峰 ' + fmtMoneyCn(cell.peakCost) + ' · 闲 ' + fmtMoneyCn(cell.offPeakCost),
-              },
-                h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4 } },
-                  h('span', { style: { fontSize: 11, fontWeight: 700 } }, cell.label),
-                  h('span', { style: { fontSize: 10, color: MUTED } }, cell.sub)),
-                h('div', { style: { fontSize: 11.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }, fmtNumberCn(cell.tokens)),
-                h('div', { style: { fontSize: 11, fontVariantNumeric: 'tabular-nums' } }, fmtMoneyCn(cell.cost)),
-                h('div', { style: { fontSize: 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
-                  '峰 ' + fmtMoneyCn(cell.peakCost) + ' · 闲 ' + fmtMoneyCn(cell.offPeakCost)))
-            : h('div', { key: 'blank-' + index })),
-        ),
+        calendar.matrix
+          ? h('div', { style: { display: 'grid', gridTemplateColumns: '52px repeat(' + calendar.columns + ', minmax(0, 1fr))', gap: 4 } },
+              h('div', { key: 'corner' }),
+              Array.from({ length: calendar.columns }, (_, index) => h('div', { key: 'head-' + index, style: { fontSize: 10.5, color: MUTED, textAlign: 'center' } }, '第' + (index + 1) + '周')),
+              calendar.rows.map((row) => [
+                h('div', { key: 'label-' + row.label, style: { fontSize: 11, color: MUTED, display: 'flex', alignItems: 'center' } }, row.label),
+                ...Array.from({ length: calendar.columns }, (_, index) => {
+                  const cell = row.cells[index];
+                  return cell ? cellNode(cell) : h('div', { key: 'empty-' + row.label + '-' + index });
+                }),
+              ]))
+          : h('div', { style: { display: 'grid', gridTemplateColumns: columns, gap: 4 } },
+              calendar.cells.map((cell, index) => (cell ? cellNode(cell) : h('div', { key: 'blank-' + index }))),
+            ),
         detail
           ? h('div', { style: { marginTop: 10, padding: '10px 12px', border: '1px solid rgba(0,0,0,.1)', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.03))' } },
               h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 } },
