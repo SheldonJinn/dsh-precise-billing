@@ -1387,6 +1387,35 @@ window.__ModuleLoader__.load({
           title: year + ' 年 · 全年 1-12 月',
         };
       }
+      if (dim === 'year') {
+        const byDate = {};
+        for (const day of days || []) byDate[day.date] = day;
+        const years = new Set();
+        for (const day of days || []) years.add(Number(day.date.slice(0, 4)));
+        years.add(anchor.year);
+        const rows = [...years].filter((year) => Number.isFinite(year)).sort((a, b) => a - b).map((year) => {
+          const cells = [];
+          for (let month = 1; month <= 12; month += 1) {
+            const cell = emptyCell(year + '-' + String(month).padStart(2, '0'), '', '');
+            for (let d = 1; d <= new Date(year, month, 0).getDate(); d += 1) {
+              const dateKey = year + '-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+              const day = byDate[dateKey];
+              if (!day) continue;
+              const local = localMap[dateKey];
+              addCellUsage(cell, { ...day, localPeakCost: local?.peakCost, localOffPeakCost: local?.offPeakCost }, true);
+            }
+            cells.push(cell);
+          }
+          return { label: year + ' 年', cells };
+        });
+        return {
+          matrix: true,
+          rows,
+          columns: 12,
+          headers: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+          title: anchor.year - 1 + ' - ' + anchor.year + ' 年（一年一行）',
+        };
+      }
       const map = {};
       for (let m = 1; m <= 12; m += 1) {
         const key = anchor.year + '-' + String(m).padStart(2, '0');
@@ -1417,6 +1446,9 @@ window.__ModuleLoader__.load({
         to = isoDate(new Date(anchor.year, anchor.month, 0));
       } else if (dim === 'month') {
         from = anchor.year + '-01-01';
+        to = anchor.year + '-12-31';
+      } else if (dim === 'year') {
+        from = anchor.year - 1 + '-01-01';
         to = anchor.year + '-12-31';
       } else {
         from = anchor.year + '-01-01';
@@ -1451,7 +1483,7 @@ window.__ModuleLoader__.load({
           const month = anchor.month + delta;
           const year = anchor.year + Math.floor((month - 1) / 12);
           setAnchor({ year, month: ((month - 1 + 12) % 12) + 1 });
-        } else if (dim === 'month') {
+        } else if (dim === 'month' || dim === 'year') {
           setAnchor({ year: anchor.year + delta, month: anchor.month });
         } else {
           setAnchor({ year: anchor.year + delta, month: anchor.month });
@@ -1468,9 +1500,10 @@ window.__ModuleLoader__.load({
       const cellStyle = (cell) => {
         const level = levelOf(cell.tokens);
         const isToday = cell.isToday === true || cell.key === todayKey;
+        const big = dim === 'month';
         return {
-          minHeight: 58,
-          padding: '5px 6px',
+          minHeight: big ? 86 : dim === 'year' ? 62 : 58,
+          padding: big ? '8px 9px' : '5px 6px',
           borderRadius: 6,
           border: isToday ? '2px solid #2f6fed' : '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
           boxShadow: isToday ? '0 0 0 2px rgba(47,111,237,.18)' : undefined,
@@ -1498,9 +1531,9 @@ window.__ModuleLoader__.load({
           '\n总额 ' + fmtMoneyCn(cell.cost) +
           '\n峰 ' + fmtMoneyCn(cell.peakCost) + ' · 闲 ' + fmtMoneyCn(cell.offPeakCost),
       },
-        h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4 } },
-          h('span', { style: { fontSize: 10.5, fontWeight: 700 } }, cell.label),
-          h('span', { style: { fontSize: 9.5, color: MUTED } }, cell.sub)),
+        (cell.label || cell.sub) ? h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4 } },
+          h('span', { style: { fontSize: dim === 'month' ? 13 : 10.5, fontWeight: 700 } }, cell.label),
+          h('span', { style: { fontSize: 9.5, color: MUTED } }, cell.sub)) : null,
         h('div', { style: { fontSize: 11.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }, cell.empty ? '—' : fmtNumberCn(cell.tokens)),
         h('div', { style: { fontSize: 10.5, fontVariantNumeric: 'tabular-nums' } }, fmtMoneyCn(cell.cost)),
         h('div', { style: { fontSize: 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
@@ -1512,7 +1545,7 @@ window.__ModuleLoader__.load({
       return h('div', null,
         h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 } },
           h('div', { style: { display: 'inline-flex', border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, overflow: 'hidden' } },
-            [['day', '按日'], ['week', '按周'], ['month', '按月']].map(([value, label]) => h('button', {
+            [['day', '按日'], ['week', '按周'], ['month', '按月'], ['year', '按年']].map(([value, label]) => h('button', {
               key: value,
               type: 'button',
               onClick: () => { setDim(value); setDetail(null); },
@@ -1534,7 +1567,7 @@ window.__ModuleLoader__.load({
           ? h('div', { style: { display: 'flex', flexDirection: 'column', border: '1px solid rgba(0,0,0,.08)', borderRadius: 8, overflow: 'hidden' } },
               h('div', { style: { display: 'flex', gap: 4, padding: '6px 8px', marginBottom: 2, borderRadius: 6, background: 'rgba(0,0,0,.06)' } },
                 h('div', { key: 'corner', style: { width: 52, flex: '0 0 52px' } }),
-                Array.from({ length: calendar.columns }, (_, index) => h('div', { key: 'head-' + index, style: { flex: '1 1 0', fontSize: 10.5, color: MUTED, textAlign: 'center' } }, '第' + (index + 1) + '周'))),
+                Array.from({ length: calendar.columns }, (_, index) => h('div', { key: 'head-' + index, style: { flex: '1 1 0', fontSize: 10.5, color: MUTED, textAlign: 'center' } }, (calendar.headers && calendar.headers[index]) || ('第' + (index + 1) + '周')))),
               calendar.rows.map((row, rowIndex) => h('div', {
                 key: 'row-' + row.label,
                 style: {
@@ -1552,7 +1585,17 @@ window.__ModuleLoader__.load({
                     ? h('div', { key: cell.key, style: { flex: '1 1 0', minWidth: 0 } }, cellNode(cell))
                     : h('div', { key: 'empty-' + row.label + '-' + index, style: { flex: '1 1 0' } });
                 }))))
-          : dim === 'day'
+          : dim === 'month'
+            ? h('div', { style: { display: 'flex', flexDirection: 'column' } },
+                (() => {
+                  const rows = [];
+                  for (let index = 0; index < calendar.cells.length; index += 6) rows.push(calendar.cells.slice(index, index + 6));
+                  return rows.map((row, rowIndex) => h('div', {
+                    key: 'mrow-' + rowIndex,
+                    style: { display: 'flex', gap: 4, padding: '4px 6px', background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.02)' : 'transparent' },
+                  }, row.map((cell, cellIndex) => h('div', { key: cellIndex, style: { flex: '1 1 0', minWidth: 0 } }, cell ? cellNode(cell) : null))));
+                })())
+            : dim === 'day'
             ? h('div', { style: { display: 'flex', flexDirection: 'column' } },
                 h('div', { style: { display: 'flex', gap: 4, padding: '0 6px 4px' } },
                   weekday.map((name) => h('div', { key: name, style: { flex: '1 1 0', fontSize: 10.5, color: MUTED, textAlign: 'center' } }, name))),
