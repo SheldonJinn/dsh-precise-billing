@@ -859,38 +859,91 @@ window.__ModuleLoader__.load({
         }));
     }
 
-    function UsageTokenBreakdown({ models, metric, modelColors }) {
-      const list = (models || []).slice().sort((a, b) =>
-        metric === 'requests' ? (b.requests || 0) - (a.requests || 0) : usageTotalTokens(b.tokens) - usageTotalTokens(a.tokens));
-      if (list.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
-      const segments = [
-        { key: 'cacheRead', label: '输入（命中缓存）', color: '#2f6fed' },
-        { key: 'input', label: '输入（未命中缓存）', color: '#7fb2ff' },
-        { key: 'cacheWrite', label: '缓存写入', color: '#f1c40f' },
-        { key: 'output', label: '输出', color: '#2e9e63' },
-      ];
-      const valueOf = (model) => (metric === 'requests' ? model.requests || 0 : usageTotalTokens(model.tokens));
-      const max = Math.max(...list.map(valueOf), 1);
-      return h('div', null,
-        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7 } },
-          list.map((model) => {
+    function UsageTokenChart({ days, hours, dayKey, singleDay, models, metric }) {
+      const names = models || [];
+      const valueOf = (bucket) => (metric === 'requests' ? bucket.requests || 0 : usageTotalTokens(bucket.tokens || {}));
+      let series = [];
+      if (singleDay) {
+        const byHour = {};
+        for (const entry of hours || []) {
+          const time = String(entry.time || '');
+          if (time.slice(0, 10) !== dayKey) continue;
+          const hour = Number(time.slice(11, 13));
+          if (!Number.isFinite(hour)) continue;
+          const slot = byHour[hour] || (byHour[hour] = { total: 0, parts: {} });
+          const entryModels = entry.models || {};
+          const keys = Object.keys(entryModels);
+          if (keys.length === 0) {
+            slot.total += valueOf(entry);
+            continue;
+          }
+          for (const name of keys) {
+            const value = valueOf(entryModels[name]);
+            slot.parts[name] = (slot.parts[name] || 0) + value;
+            slot.total += value;
+          }
+        }
+        for (let hour = 0; hour <= 23; hour += 1) {
+          const slot = byHour[hour] || { total: 0, parts: {} };
+          series.push({ label: String(hour).padStart(2, '0') + ':00', total: slot.total, parts: slot.parts });
+        }
+      } else {
+        series = (days || []).slice(-31).map((day) => {
+          const parts = {};
+          let total = 0;
+          for (const model of day.models || []) {
             const value = valueOf(model);
-            const tokens = model.tokens || {};
-            return h('div', { key: model.model, style: { display: 'flex', alignItems: 'center', gap: 10 } },
-              h('span', { style: { width: 150, fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, model.model),
-              metric === 'requests'
-                ? h('div', { style: { flex: '1 1 auto', height: 10, borderRadius: 3, background: 'rgba(0,0,0,.05)', overflow: 'hidden' } },
-                    h('div', { style: { width: (value / max) * 100 + '%', height: '100%', background: modelColor(model.model, modelColors) } }))
-                : h('div', { style: { flex: '1 1 auto', height: 10, borderRadius: 3, background: 'rgba(0,0,0,.05)', overflow: 'hidden', display: 'flex' } },
-                    segments.map((segment) => h('div', { key: segment.key, style: { width: ((tokens[segment.key] || 0) / max) * 100 + '%', height: '100%', background: segment.color } }))),
-              h('span', { style: { width: 110, textAlign: 'right', fontSize: 11.5, fontVariantNumeric: 'tabular-nums' } },
-                metric === 'requests' ? fmtNumberCn(value) + ' 次' : fmtNumberCn(value)));
-          })),
-        metric === 'requests'
-          ? null
-          : h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8, fontSize: 10.5, color: MUTED } },
-              segments.map((segment) => h('span', { key: segment.key, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
-                h('i', { style: { width: 8, height: 8, borderRadius: 2, background: segment.color, display: 'inline-block' } }), segment.label))));
+            parts[model.model] = value;
+            total += value;
+          }
+          if (!(day.models || []).length) total = valueOf(day);
+          return { label: day.date, total, parts };
+        });
+      }
+      if (series.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
+      const axisSlots = series.map((item, index) => {
+        if (singleDay) return index % 6 === 0 || index === series.length - 1 ? item.label : '';
+        if (index === 0 || index === Math.floor(series.length / 2) || index === series.length - 1) return item.label.slice(5);
+        return '';
+      });
+      const max = Math.max.apply(null, series.map((item) => item.total).concat([1]));
+      const height = 120;
+      const axisText = (value) => (metric === 'requests' ? fmtNumberCn(value) : fmtNumberCn(value));
+      const gridLines = [1, 2, 3, 4].map((step) =>
+        h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
+      const bars = series.map((item, index) => {
+        const stack = names
+          .filter((name) => item.parts[name])
+          .map((name) => h('div', {
+            key: name,
+            style: { height: item.total > 0 ? ((item.parts[name] || 0) / item.total) * 100 + '%' : '0%', background: modelColor(name, names) },
+          }));
+        const bar = h('div', { style: { width: '55%', maxWidth: 22, minWidth: 3, height: (item.total > 0 ? Math.max(1, (item.total / max) * 100) : 0) + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: '2px 2px 0 0', overflow: 'hidden' } }, stack);
+        const nextHour = singleDay ? Number(item.label.slice(0, 2)) + 1 : 0;
+        const tip = singleDay
+          ? item.label.slice(0, 2) + ':00–' + String(nextHour).padStart(2, '0') + ':00 · ' + fmtNumberCn(item.total)
+          : item.label + ' · ' + fmtNumberCn(item.total);
+        return h('div', {
+          key: index,
+          title: tip,
+          style: { flex: '1 1 0', height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', minWidth: 2 },
+        }, bar);
+      });
+      const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.12)', borderBottom: '1px solid rgba(0,0,0,.12)' } },
+        gridLines,
+        h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 6 } }, bars));
+      const xAxis = h('div', { style: { display: 'flex', fontSize: 9.5, color: MUTED, marginTop: 3 } },
+        axisSlots.map((label, index) => h('span', { key: index, style: { flex: '1 1 0', textAlign: 'center', whiteSpace: 'nowrap' } }, label)));
+      const legendItems = names.map((name) =>
+        h('span', { key: name, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
+          h('i', { style: { width: 8, height: 8, borderRadius: 2, background: modelColor(name, names), display: 'inline-block' } }),
+          name));
+      return h('div', null,
+        h('div', { style: { display: 'flex', gap: 6 } },
+          h('div', { style: { width: 64, height: height, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontSize: 10, color: MUTED, textAlign: 'right' } },
+            [4, 3, 2, 1, 0].map((step) => h('div', { key: step }, axisText((max * step) / 4)))),
+          h('div', { style: { flex: '1 1 0', minWidth: 0 } }, plot, xAxis)),
+        h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 6, fontSize: 10.5, color: MUTED } }, legendItems));
     }
 
     function UsageModelPicker({ models, selected, onChange }) {
@@ -1244,11 +1297,11 @@ window.__ModuleLoader__.load({
                         : h(UsageModelBars, { models: totals.models })),
                     h('div', { style: usagePanelStyles.section },
                       h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 } },
-                        h('div', { style: usagePanelStyles.sectionTitle }, '各模型 Token 用量'),
+                        h('div', { style: usagePanelStyles.sectionTitle }, '各模型 Token 用量', h('span', { style: { marginLeft: 10, fontSize: 10.5, fontWeight: 400, color: MUTED } }, fmtNumberCn(usageTotalTokens(tokens)) + ' Tokens')),
                         h('div', { style: groupStyle },
                           h('button', { type: 'button', onClick: () => setMetric('tokens'), style: toggleStyle(metric === 'tokens') }, 'Token 数'),
                           h('button', { type: 'button', onClick: () => setMetric('requests'), style: toggleStyle(metric === 'requests') }, '请求数'))),
-                      h(UsageTokenBreakdown, { models: totals.models, metric, modelColors: modelNames })),
+                      h(UsageTokenChart, { days: data && data.days, hours: data && data.hours, dayKey: win.from, singleDay: win.from === win.to, models: modelNames, metric })),
                     h('div', { style: usagePanelStyles.section },
                       h('div', { style: usagePanelStyles.sectionTitle }, '各模型明细（对比上一周期）'),
                       h(UsageModelTable, { models: totals.models, prevModels: prevTotals.models })))
