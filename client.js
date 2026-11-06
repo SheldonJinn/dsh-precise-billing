@@ -824,6 +824,75 @@ window.__ModuleLoader__.load({
       return h('div', null, axis, legend);
     }
 
+    function UsageRequestsChart({ days, hours, dayKey, singleDay }) {
+      const values = [];
+      const labels = [];
+      if (singleDay) {
+        const byHour = {};
+        for (const entry of hours || []) {
+          const time = String(entry.time || '');
+          if (time.slice(0, 10) !== dayKey) continue;
+          const hour = Number(time.slice(11, 13));
+          if (!Number.isFinite(hour)) continue;
+          byHour[hour] = (byHour[hour] || 0) + (entry.requests || 0);
+        }
+        for (let hour = 0; hour <= 23; hour += 1) {
+          values.push(byHour[hour] || 0);
+          labels.push(String(hour).padStart(2, '0') + ':00');
+        }
+      } else {
+        for (const day of (days || []).slice(-31)) {
+          values.push(day.requests || 0);
+          labels.push(day.date);
+        }
+      }
+      if (values.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
+
+      const width = 1000;
+      const height = 120;
+      const max = Math.max.apply(null, values.concat([1]));
+      const step = values.length > 1 ? width / (values.length - 1) : width;
+      const px = (index) => Math.round(index * step);
+      const py = (value) => Math.round(height - (value / max) * height);
+      const points = values.map((value, index) => px(index) + ',' + py(value));
+      const linePath = 'M' + points.join(' L');
+      const areaPath = linePath + ' L' + px(values.length - 1) + ',' + height + ' L0,' + height + ' Z';
+
+      const grid = [1, 2, 3, 4].map((k) =>
+        h('div', { key: k, style: { position: 'absolute', left: 0, right: 0, bottom: k * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
+
+      const hoverRects = values.map((value, index) => {
+        const rect = h('rect', { x: px(index), y: 0, width: Math.max(1, step), height: height, fill: 'transparent' });
+        return h('g', { key: index }, rect, h('title', null, labels[index] + ' · ' + fmtNumberCn(value) + ' 次'));
+      });
+
+      const svg = h('svg', {
+        viewBox: '0 0 ' + width + ' ' + height,
+        preserveAspectRatio: 'none',
+        style: { position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' },
+      },
+        h('path', { d: areaPath, fill: 'rgba(47,111,237,.18)' }),
+        h('path', { d: linePath, fill: 'none', stroke: '#2f6fed', strokeWidth: 2, vectorEffect: 'non-scaling-stroke', strokeLinejoin: 'round' }),
+        hoverRects);
+
+      const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.12)', borderBottom: '1px solid rgba(0,0,0,.12)' } }, grid, svg);
+
+      const axisSlots = labels.map((label, index) => {
+        if (singleDay) return index % 6 === 0 || index === labels.length - 1 ? label : '';
+        if (index === 0 || index === Math.floor(labels.length / 2) || index === labels.length - 1) return label.slice(5);
+        return '';
+      });
+      const xAxis = h('div', { style: { display: 'flex', fontSize: 9.5, color: MUTED, marginTop: 3 } },
+        axisSlots.map((label, index) => h('span', { key: index, style: { flex: '1 1 0', textAlign: 'center', whiteSpace: 'nowrap' } }, label)));
+
+      const yAxis = h('div', { style: { width: 56, height: height, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontSize: 10, color: MUTED, textAlign: 'right' } },
+        [4, 3, 2, 1, 0].map((k) => h('div', { key: k }, fmtNumberCn((max * k) / 4))));
+
+      return h('div', { style: { display: 'flex', gap: 6 } },
+        yAxis,
+        h('div', { style: { flex: '1 1 0', minWidth: 0 } }, plot, xAxis));
+    }
+
     function UsageModelTable({ models, prevModels }) {
       const list = (models || []).slice().sort((a, b) => (b.cost || 0) - (a.cost || 0));
       if (list.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
@@ -1302,6 +1371,9 @@ window.__ModuleLoader__.load({
                           h('button', { type: 'button', onClick: () => setMetric('tokens'), style: toggleStyle(metric === 'tokens') }, 'Token 数'),
                           h('button', { type: 'button', onClick: () => setMetric('requests'), style: toggleStyle(metric === 'requests') }, '请求数'))),
                       h(UsageTokenChart, { days: data && data.days, hours: data && data.hours, dayKey: win.from, singleDay: win.from === win.to, models: modelNames, metric })),
+                    h('div', { style: usagePanelStyles.section },
+                      h('div', { style: usagePanelStyles.sectionTitle }, 'API 请求次数', h('span', { style: { marginLeft: 10, fontSize: 10.5, fontWeight: 400, color: MUTED } }, fmtNumberCn(totals.requests) + ' 次')),
+                      h(UsageRequestsChart, { days: data && data.days, hours: data && data.hours, dayKey: win.from, singleDay: win.from === win.to })),
                     h('div', { style: usagePanelStyles.section },
                       h('div', { style: usagePanelStyles.sectionTitle }, '各模型明细（对比上一周期）'),
                       h(UsageModelTable, { models: totals.models, prevModels: prevTotals.models })))
