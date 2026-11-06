@@ -1368,7 +1368,7 @@ window.__ModuleLoader__.load({
       const weekday = ['一', '二', '三', '四', '五', '六', '日'];
 
       return h('div', null,
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 } },
+        h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 } },
           h('div', { style: { display: 'inline-flex', border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, overflow: 'hidden' } },
             [['day', '按日'], ['week', '按周'], ['month', '按月']].map(([value, label]) => h('button', {
               key: value,
@@ -1377,7 +1377,7 @@ window.__ModuleLoader__.load({
               style: { padding: '4px 10px', fontSize: 11.5, border: 'none', cursor: 'pointer', background: dim === value ? 'rgba(47,111,237,.12)' : 'transparent', color: dim === value ? '#2f6fed' : 'inherit', fontWeight: dim === value ? 600 : 400 },
             }, label))),
           h('button', { type: 'button', onClick: () => shift(-1), style: { padding: '4px 8px', fontSize: 12, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '‹'),
-          h('span', { style: { fontSize: 12.5, fontWeight: 600, minWidth: 110, textAlign: 'center' } }, calendar.title),
+          h('span', { style: { fontSize: 15, fontWeight: 700, minWidth: 140, textAlign: 'center', letterSpacing: 0.3 } }, calendar.title),
           h('button', { type: 'button', onClick: () => shift(1), style: { padding: '4px 8px', fontSize: 12, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '›'),
           h('button', { type: 'button', onClick: () => { setAnchor({ year: today.getFullYear(), month: today.getMonth() + 1 }); setDetail(null); }, style: { padding: '4px 8px', fontSize: 11.5, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '今天'),
           state.status === 'loading' ? h('span', { style: { fontSize: 11, color: MUTED } }, '加载中…') : null,
