@@ -715,32 +715,142 @@ window.__ModuleLoader__.load({
           .filter((day) => day.models.length > 0);
       const days = mapDays(data.days);
       const localDays = data.localDays ? mapDays(data.localDays) : undefined;
+      const mapHours = (hours) =>
+        (hours || [])
+          .map((entry) => {
+            const list = Object.entries(entry.models || {}).map(([name, value]) => ({ model: name, ...value }));
+            const picked = pick(list);
+            const models = {};
+            for (const model of picked.models) models[model.model] = model;
+            return { ...entry, ...picked, models };
+          })
+          .filter((entry) => Object.keys(entry.models).length > 0);
+      const hours = data.hours ? mapHours(data.hours) : undefined;
       const totals = pick((data.totals && data.totals.models) || []);
-      return { ...data, days, localDays, totals };
+      return { ...data, days, localDays, hours, totals };
     }
 
-    function UsageModelTrendChart({ days, models }) {
-      const list = (days || []).slice(-31);
-      if (list.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
-      const max = Math.max(...list.map((day) => day.cost || 0), 0.0001);
+    function UsageCostChart({ days, hours, dayKey, singleDay, models }) {
       const names = models || [];
-      return h('div', null,
-        h('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 3, height: 130, paddingTop: 6 } },
-          list.map((day) => {
-            const total = day.cost || 0;
-            const height = Math.max(2, (total / max) * 100);
-            const dayModels = (day.models || []).slice().sort((a, b) => (b.cost || 0) - (a.cost || 0));
-            return h('div', {
-              key: day.date,
-              title: day.date + ' · ' + fmtMoneyCn(total),
-              style: { flex: '1 1 0', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', minWidth: 4 },
-            },
-              h('div', { style: { height: height + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: 2, overflow: 'hidden' } },
-                dayModels.map((model) => h('div', { key: model.model, style: { height: total > 0 ? ((model.cost || 0) / total) * 100 + '%' : '0%', background: modelColor(model.model, names) } }))));
-          })),
-        h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8, fontSize: 10.5, color: MUTED } },
-          names.map((name) => h('span', { key: name, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
-            h('i', { style: { width: 8, height: 8, borderRadius: 2, background: modelColor(name, names), display: 'inline-block' } }), name))));
+      let series = [];
+      let xLabels = [];
+      if (singleDay) {
+        const byHour = {};
+        for (const entry of hours || []) {
+          const time = String(entry.time || '');
+          if (time.slice(0, 10) !== dayKey) continue;
+          const hour = Number(time.slice(11, 13));
+          if (!Number.isFinite(hour)) continue;
+          const slot = byHour[hour] || (byHour[hour] = { total: 0, parts: {} });
+          const hourModels = entry.models || {};
+          const keys = Object.keys(hourModels);
+          if (keys.length === 0) {
+            slot.total += entry.cost || 0;
+            continue;
+          }
+          for (const name of keys) {
+            const value = (hourModels[name] && hourModels[name].cost) || 0;
+            slot.parts[name] = (slot.parts[name] || 0) + value;
+            slot.total += value;
+          }
+        }
+        const isToday = dayKey === isoDate(new Date());
+        const maxHour = isToday ? new Date().getHours() : 23;
+        for (let hour = 0; hour <= maxHour; hour += 1) {
+          const slot = byHour[hour] || { total: 0, parts: {} };
+          series.push({ label: String(hour).padStart(2, '0') + ':00', total: slot.total, parts: slot.parts });
+        }
+        xLabels = ['00:00', '06:00', '12:00', '18:00', '23:00'];
+      } else {
+        series = (days || []).slice(-31).map((day) => {
+          const parts = {};
+          for (const model of day.models || []) parts[model.model] = model.cost || 0;
+          return { label: day.date, total: day.cost || 0, parts };
+        });
+        if (series.length > 0) {
+          const middle = series[Math.floor(series.length / 2)].label.slice(5);
+          xLabels = [series[0].label.slice(5), middle, series[series.length - 1].label.slice(5)];
+        }
+      }
+      if (series.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
+
+      const max = Math.max.apply(null, series.map((item) => item.total).concat([0.0001]));
+      const height = 120;
+
+      const yLabels = [4, 3, 2, 1, 0].map((step) =>
+        h('div', { key: step }, fmtMoneyCn((max * step) / 4)));
+
+      const gridLines = [1, 2, 3, 4].map((step) =>
+        h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
+
+      const bars = series.map((item, index) => {
+        const stack = names
+          .filter((name) => item.parts[name])
+          .map((name) => h('div', {
+            key: name,
+            style: { height: item.total > 0 ? ((item.parts[name] || 0) / item.total) * 100 + '%' : '0%', background: modelColor(name, names) },
+          }));
+        const bar = h('div', { style: { width: '100%', height: Math.max(1, (item.total / max) * 100) + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: 1, overflow: 'hidden' } }, stack);
+        return h('div', {
+          key: index,
+          title: item.label + ' · ' + fmtMoneyCn(item.total),
+          style: { flex: '1 1 0', height: '100%', display: 'flex', alignItems: 'flex-end', minWidth: 2 },
+        }, bar);
+      });
+
+      const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.12)', borderBottom: '1px solid rgba(0,0,0,.12)' } },
+        gridLines,
+        h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 2 } }, bars));
+
+      const xAxis = h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: MUTED, marginTop: 3 } },
+        xLabels.map((label, index) => h('span', { key: index }, label)));
+
+      const axis = h('div', { style: { display: 'flex', gap: 6 } },
+        h('div', { style: { width: 58, height: height, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontSize: 10, color: MUTED, textAlign: 'right' } }, yLabels),
+        h('div', { style: { flex: '1 1 0', minWidth: 0 } }, plot, xAxis));
+
+      const legendItems = names.map((name) =>
+        h('span', { key: name, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
+          h('i', { style: { width: 8, height: 8, borderRadius: 2, background: modelColor(name, names), display: 'inline-block' } }),
+          name));
+      const legend = h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 6, fontSize: 10.5, color: MUTED } }, legendItems);
+
+      return h('div', null, axis, legend);
+    }
+
+    function UsageModelTable({ models, prevModels }) {
+      const list = (models || []).slice().sort((a, b) => (b.cost || 0) - (a.cost || 0));
+      if (list.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
+      const prevMap = {};
+      for (const model of prevModels || []) prevMap[model.model] = model;
+      const cell = { padding: '3px 0', fontSize: 11.5 };
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
+        h('div', { style: { display: 'flex', gap: 8, fontSize: 10.5, color: MUTED, paddingBottom: 3, borderBottom: '1px solid rgba(0,0,0,.06)' } },
+          h('span', { style: { flex: '1 1 0' } }, '模型'),
+          h('span', { style: { width: 86, textAlign: 'right' } }, '变化'),
+          h('span', { style: { width: 92, textAlign: 'right' } }, '金额'),
+          h('span', { style: { width: 76, textAlign: 'right' } }, '调用'),
+          h('span', { style: { width: 92, textAlign: 'right' } }, 'Tokens')),
+        list.map((model) => {
+          const prev = prevMap[model.model];
+          let changeText = '—';
+          let changeColor = MUTED;
+          if (prev && (prev.cost || 0) > 0) {
+            const ratio = ((model.cost || 0) - prev.cost) / prev.cost;
+            const percent = (ratio * 100).toFixed(1) + '%';
+            changeText = ratio > 0 ? '+' + percent : percent;
+            changeColor = ratio > 0 ? '#c0392b' : '#2e9e63';
+          } else if (!prev && (model.cost || 0) > 0) {
+            changeText = '新增';
+            changeColor = '#c0392b';
+          }
+          return h('div', { key: model.model, style: { display: 'flex', gap: 8, alignItems: 'baseline', padding: '3px 0', borderBottom: '1px solid rgba(0,0,0,.04)' } },
+            h('span', { style: { ...cell, flex: '1 1 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, model.model),
+            h('span', { style: { ...cell, width: 86, textAlign: 'right', color: changeColor } }, changeText),
+            h('span', { style: { ...cell, width: 92, textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }, fmtMoneyCn(model.cost)),
+            h('span', { style: { ...cell, width: 76, textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }, fmtNumberCn(model.requests) + ' 次'),
+            h('span', { style: { ...cell, width: 92, textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }, fmtNumberCn(usageTotalTokens(model.tokens))));
+        }));
     }
 
     function UsageTokenBreakdown({ models, metric, modelColors }) {
@@ -943,17 +1053,35 @@ window.__ModuleLoader__.load({
         }));
     }
 
+    function shiftDateKey(key, days) {
+      const parts = String(key).split('-').map(Number);
+      const date = new Date(parts[0], parts[1] - 1, parts[2]);
+      date.setDate(date.getDate() + days);
+      return isoDate(date);
+    }
+
+    function previousWindow(win) {
+      const a = win.from.split('-').map(Number);
+      const b = win.to.split('-').map(Number);
+      const days = Math.max(1, Math.round((Date.UTC(b[0], b[1] - 1, b[2]) - Date.UTC(a[0], a[1] - 1, a[2])) / 86400000) + 1);
+      return { from: shiftDateKey(win.from, -days), to: shiftDateKey(win.from, -1) };
+    }
+
+    function fetchUsageWindow(win, mode) {
+      const query = '/api/precise-billing/usage?from=' + win.from + '&to=' + win.to + '&mode=' + mode;
+      return fetch(query, { cache: 'no-store' }).then((res) => res.json());
+    }
+
     function useUsage(rangeKey, custom, mode) {
       const [state, setState] = React.useState({ status: 'loading' });
       const [tick, setTick] = React.useState(0);
       React.useEffect(() => {
         let alive = true;
         const win = rangeKey === 'custom' && custom ? custom : rangeOf(rangeKey);
-        const query = '/api/precise-billing/usage?from=' + win.from + '&to=' + win.to + '&mode=' + mode;
-        fetch(query, { cache: 'no-store' })
-          .then((res) => res.json())
-          .then((data) => {
-            if (alive) setState({ status: 'ok', data });
+        const prevWin = previousWindow(win);
+        Promise.all([fetchUsageWindow(win, mode), fetchUsageWindow(prevWin, mode).catch(() => undefined)])
+          .then(([data, prev]) => {
+            if (alive) setState({ status: 'ok', data, prev, win });
           })
           .catch((error) => {
             if (alive) setState({ status: 'error', error: String((error && error.message) || error) });
@@ -1006,6 +1134,10 @@ window.__ModuleLoader__.load({
       const tokens = totals.tokens || {};
       const hit = usageHitRate(tokens);
       const modelNames = (totals.models || []).map((item) => item.model);
+      const prevFiltered = state.prev ? filterUsageByModels(state.prev, selectedModels === 'all' ? null : selectedModels) : undefined;
+      const prevData = applyLocalSplit(prevFiltered);
+      const prevTotals = (prevData && prevData.totals) || { models: [] };
+      const win = state.win || (rangeKey === 'custom' && appliedCustom ? appliedCustom : rangeOf(rangeKey));
       const balance = (props && props.account && props.account.logged && props.account.balance) || (data && data.balance && data.balance.balance);
       const loading = state.status === 'loading';
       const errorText = state.status === 'error' ? state.error : data && data.error === 'not-logged' ? '未检测到 DeepSeek 账号，官方数据不可用' : undefined;
@@ -1096,7 +1228,13 @@ window.__ModuleLoader__.load({
                           h('button', { type: 'button', onClick: () => setChartMode('trend'), style: toggleStyle(chartMode === 'trend') }, '趋势'),
                           h('button', { type: 'button', onClick: () => setChartMode('total'), style: toggleStyle(chartMode === 'total') }, '综合'))),
                       chartMode === 'trend'
-                        ? h(UsageModelTrendChart, { days: data && data.days, models: modelNames })
+                        ? h(UsageCostChart, {
+                            days: data && data.days,
+                            hours: data && data.hours,
+                            dayKey: win.from,
+                            singleDay: win.from === win.to,
+                            models: modelNames,
+                          })
                         : h(UsageModelBars, { models: totals.models })),
                     h('div', { style: usagePanelStyles.section },
                       h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 } },
@@ -1106,8 +1244,8 @@ window.__ModuleLoader__.load({
                           h('button', { type: 'button', onClick: () => setMetric('requests'), style: toggleStyle(metric === 'requests') }, '请求数'))),
                       h(UsageTokenBreakdown, { models: totals.models, metric, modelColors: modelNames })),
                     h('div', { style: usagePanelStyles.section },
-                      h('div', { style: usagePanelStyles.sectionTitle }, '按日消费（峰 / 闲）'),
-                      h(UsageDailyChart, { days: data && data.days })))
+                      h('div', { style: usagePanelStyles.sectionTitle }, '各模型明细（对比上一周期）'),
+                      h(UsageModelTable, { models: totals.models, prevModels: prevTotals.models })))
                 : h('div', { style: usagePanelStyles.section },
                     h('div', { style: usagePanelStyles.sectionTitle }, '用量日历'),
                     h(UsageCalendar, { mode, model: calendarModel }))))), document.body);
@@ -1397,7 +1535,7 @@ window.__ModuleLoader__.load({
           : null,
         calendar.matrix
           ? h('div', { style: { display: 'flex', flexDirection: 'column', border: '1px solid rgba(0,0,0,.08)', borderRadius: 8, overflow: 'hidden' } },
-              h('div', { style: { display: 'flex', gap: 4, padding: '6px 8px', background: 'rgba(0,0,0,.035)' } },
+              h('div', { style: { display: 'flex', gap: 4, padding: '6px 8px', marginBottom: 2, borderRadius: 6, background: 'rgba(0,0,0,.06)' } },
                 h('div', { key: 'corner', style: { width: 52, flex: '0 0 52px' } }),
                 Array.from({ length: calendar.columns }, (_, index) => h('div', { key: 'head-' + index, style: { flex: '1 1 0', fontSize: 10.5, color: MUTED, textAlign: 'center' } }, '第' + (index + 1) + '周'))),
               calendar.rows.map((row, rowIndex) => h('div', {
@@ -1405,10 +1543,11 @@ window.__ModuleLoader__.load({
                 style: {
                   display: 'flex',
                   gap: 4,
-                  padding: '4px 8px',
+                  padding: '5px 8px',
                   alignItems: 'stretch',
-                  borderTop: rowIndex > 0 ? '1px solid rgba(0,0,0,.07)' : undefined,
-                  background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.018)' : 'transparent',
+                  margin: '1px 0',
+                  borderRadius: 6,
+                  background: 'rgba(0,0,0,.035)',
                 },
               },
                 h('div', { key: 'label-' + row.label, style: { width: 52, flex: '0 0 52px', fontSize: 11, color: MUTED, display: 'flex', alignItems: 'center' } }, row.label),

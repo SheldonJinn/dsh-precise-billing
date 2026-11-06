@@ -304,6 +304,7 @@ function addRecord(summary, record) {
       peakCost: 0,
       offPeakCost: 0,
       tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 },
+      models: {},
     });
   hour.messages += 1;
   hour.tokens.input += input;
@@ -313,6 +314,16 @@ function addRecord(summary, record) {
   hour.cost += cost;
   if (peak) hour.peakCost += cost;
   else hour.offPeakCost += cost;
+  if (!hour.models) hour.models = {};
+  const hourModel = hour.models[modelKey] ?? (hour.models[modelKey] = { messages: 0, cost: 0, peakCost: 0, offPeakCost: 0, tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 } });
+  hourModel.messages += 1;
+  hourModel.tokens.input += input;
+  hourModel.tokens.cacheRead += cacheRead;
+  hourModel.tokens.cacheWrite += cacheWrite;
+  hourModel.tokens.output += output;
+  hourModel.cost += cost;
+  if (peak) hourModel.peakCost += cost;
+  else hourModel.offPeakCost += cost;
   const keys = Object.keys(hours);
   if (keys.length > 240) {
     keys.sort();
@@ -456,12 +467,23 @@ function cloneHours(hours) {
   const out = {};
   if (!hours) return out;
   for (const [key, value] of Object.entries(hours)) {
+    const models = {};
+    for (const [name, m] of Object.entries(value.models ?? {})) {
+      models[name] = {
+        messages: m.messages,
+        cost: m.cost,
+        peakCost: m.peakCost ?? 0,
+        offPeakCost: m.offPeakCost ?? 0,
+        tokens: { ...m.tokens },
+      };
+    }
     out[key] = {
       messages: value.messages,
       cost: value.cost,
       peakCost: value.peakCost ?? 0,
       offPeakCost: value.offPeakCost ?? 0,
       tokens: { ...value.tokens },
+      models,
     };
   }
   return out;
@@ -954,12 +976,23 @@ export function usageLocal(from, to, modelFilter) {
         mergeDayUsage(slotModel, { requests: m.messages, cost: m.cost, peakCost: m.peakCost, offPeakCost: m.offPeakCost, tokens: m.tokens });
       }
     }
-    if (!wantModel) {
-      for (const [key, hour] of Object.entries(summary.hours ?? {})) {
-        const date = key.slice(0, 10);
-        if (date < from || date > to) continue;
+    for (const [key, hour] of Object.entries(summary.hours ?? {})) {
+      const date = key.slice(0, 10);
+      if (date < from || date > to) continue;
+      if (wantModel) {
+        const picked = hour.models?.[wantModel];
+        if (!picked) continue;
         const slot = hours[key] ?? (hours[key] = emptyUsageBucket());
-        mergeDayUsage(slot, hour);
+        mergeDayUsage(slot, { requests: picked.messages, cost: picked.cost, peakCost: picked.peakCost, offPeakCost: picked.offPeakCost, tokens: picked.tokens });
+        const target = slot.models[wantModel] ?? (slot.models[wantModel] = { requests: 0, cost: 0, peakCost: 0, offPeakCost: 0, tokens: zeroTokens() });
+        mergeDayUsage(target, { requests: picked.messages, cost: picked.cost, peakCost: picked.peakCost, offPeakCost: picked.offPeakCost, tokens: picked.tokens });
+        continue;
+      }
+      const slot = hours[key] ?? (hours[key] = emptyUsageBucket());
+      mergeDayUsage(slot, hour);
+      for (const [name, m] of Object.entries(hour.models ?? {})) {
+        const target = slot.models[name] ?? (slot.models[name] = { requests: 0, cost: 0, peakCost: 0, offPeakCost: 0, tokens: zeroTokens() });
+        mergeDayUsage(target, { requests: m.messages, cost: m.cost, peakCost: m.peakCost, offPeakCost: m.offPeakCost, tokens: m.tokens });
       }
     }
   }
@@ -1048,6 +1081,9 @@ function ingestOfficial(amountBody, costBody, wantModel, from, to, acc) {
       addTokens(day.tokens, tokens);
       hour.requests += requests;
       addTokens(hour.tokens, tokens);
+      const hm = modelOf(hour.models, model);
+      hm.requests += requests;
+      addTokens(hm.tokens, tokens);
       const dm = modelOf(day.models, model);
       dm.requests += requests;
       addTokens(dm.tokens, tokens);
@@ -1085,6 +1121,12 @@ function ingestOfficial(amountBody, costBody, wantModel, from, to, acc) {
         }
         const dm = modelOf(day.models, model);
         const gm = modelOf(acc.models, model);
+        const hm = modelOf(hour.models, model);
+        hm.cost += cost;
+        if (canSplit) {
+          if (peak) hm.peakCost += cost;
+          else hm.offPeakCost += cost;
+        }
         dm.cost += cost;
         gm.cost += cost;
         if (canSplit) {
