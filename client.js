@@ -1156,6 +1156,10 @@ window.__ModuleLoader__.load({
                 onMouseEnter: () => setHoverKey(cell.key),
                 onMouseLeave: () => setHoverKey(null),
                 onClick: () => setDetail(cell),
+                title: cell.label + (cell.sub ? ' · ' + cell.sub : '') +
+                  '\nTokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次' +
+                  '\n总额 ' + fmtMoneyCn(cell.cost) +
+                  '\n峰 ' + fmtMoneyCn(cell.peakCost) + ' · 闲 ' + fmtMoneyCn(cell.offPeakCost),
               },
                 h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4 } },
                   h('span', { style: { fontSize: 11, fontWeight: 700 } }, cell.label),
