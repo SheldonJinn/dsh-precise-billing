@@ -727,7 +727,8 @@ window.__ModuleLoader__.load({
           .filter((entry) => Object.keys(entry.models).length > 0);
       const hours = data.hours ? mapHours(data.hours) : undefined;
       const totals = pick((data.totals && data.totals.models) || []);
-      return { ...data, days, localDays, hours, totals };
+      const localTotals = data.localTotals ? pick(data.localTotals.models || []) : undefined;
+      return { ...data, days, localDays, hours, totals, localTotals };
     }
 
     function UsageCostChart({ days, hours, dayKey, singleDay, models }) {
