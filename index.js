@@ -995,40 +995,36 @@ export function usageLocal(from, to, modelFilter) {
   };
 }
 
-/** 官方口径：by_api_key amount + cost 的小时桶，按北京时间分日/分峰闲 */
-export async function usageOfficial(ctx, from, to, modelFilter) {
-  const wantModel = modelFilter && modelFilter !== 'all' ? String(modelFilter) : undefined;
-  let token;
-  try {
-    const record = await ctx.credentials?.readRecord?.(ACCOUNT_RECORD_KEY);
-    token = record?.payload?.token;
-  } catch {
-    token = undefined;
-  }
-  if (typeof token !== 'string' || token.length === 0) {
-    return { mode: 'official', from, to, days: [], hours: [], totals: emptyUsageBucket(), error: 'not-logged' };
-  }
-  const start = dayStartSec(from);
-  const end = dayStartSec(to) + 86400;
-  const [amountRes, costRes] = await Promise.all([
-    platformGet(token, '/api/v0/usage/by_api_key/amount?start=' + start + '&end=' + end + '&tz=28800'),
-    platformGet(token, '/api/v0/usage/by_api_key/cost?start=' + start + '&end=' + end + '&tz=28800'),
-  ]);
-  if (amountRes?.unauthorized || costRes?.unauthorized) {
-    return { mode: 'official', from, to, days: [], hours: [], totals: emptyUsageBucket(), error: 'unauthorized' };
-  }
+/**
+ * 官方口径：by_api_key amount + cost 的桶数据。
+ * 平台单次查询窗口上限约 31 天（更长的 start/end 会返回空），所以按 ≤31 天切块拉取并缓存。
+ */
+const officialChunkCache = new Map();
+const OFFICIAL_CHUNK_TTL = 120000;
+const OFFICIAL_CHUNK_SPAN = 31 * 86400;
 
-  const days = {};
-  const hours = {};
-  const models = {};
-  const dayOf = (date) => days[date] ?? (days[date] = emptyUsageBucket());
-  const hourOf = (key) => hours[key] ?? (hours[key] = emptyUsageBucket());
+async function fetchOfficialChunk(token, start, end) {
+  const key = start + '|' + end;
+  const now = Date.now();
+  const hit = officialChunkCache.get(key);
+  if (hit && now - hit.at < OFFICIAL_CHUNK_TTL) return hit.value;
+  const query = '?start=' + start + '&end=' + end + '&tz=28800';
+  const [amountRes, costRes] = await Promise.all([
+    platformGet(token, '/api/v0/usage/by_api_key/amount' + query),
+    platformGet(token, '/api/v0/usage/by_api_key/cost' + query),
+  ]);
+  const value = { amountRes, costRes };
+  if (!amountRes?.unauthorized && !costRes?.unauthorized) officialChunkCache.set(key, { at: now, value });
+  return value;
+}
+
+function ingestOfficial(amountBody, costBody, wantModel, from, to, acc) {
+  const canSplit = (Number(amountBody?.bucket) || 3600) <= 3600;
+  const dayOf = (date) => acc.days[date] ?? (acc.days[date] = emptyUsageBucket());
+  const hourOf = (key) => acc.hours[key] ?? (acc.hours[key] = emptyUsageBucket());
   const modelOf = (list, name) => list[name] ?? (list[name] = { requests: 0, cost: 0, peakCost: 0, offPeakCost: 0, tokens: zeroTokens() });
 
-  const amountBody = amountRes?.data?.data?.biz_data ?? amountRes?.data?.biz_data ?? {};
-  const bucketSize = Number(amountBody.bucket) || 3600;
-  const canSplit = bucketSize <= 3600;
-  for (const series of Array.isArray(amountBody.series) ? amountBody.series : []) {
+  for (const series of Array.isArray(amountBody?.series) ? amountBody.series : []) {
     const model = series?.model ? String(series.model) : 'unknown';
     if (wantModel && model !== wantModel) continue;
     for (const bucket of Array.isArray(series?.buckets) ? series.buckets : []) {
@@ -1055,15 +1051,13 @@ export async function usageOfficial(ctx, from, to, modelFilter) {
       const dm = modelOf(day.models, model);
       dm.requests += requests;
       addTokens(dm.tokens, tokens);
-      const gm = modelOf(models, model);
+      const gm = modelOf(acc.models, model);
       gm.requests += requests;
       addTokens(gm.tokens, tokens);
     }
   }
 
-  const costBody = costRes?.data?.data?.biz_data ?? costRes?.data?.biz_data ?? {};
-  const costBlocks = Array.isArray(costBody?.data) ? costBody.data : [];
-  for (const block of costBlocks) {
+  for (const block of Array.isArray(costBody?.data) ? costBody.data : []) {
     for (const series of Array.isArray(block?.series) ? block.series : []) {
       const model = series?.model ? String(series.model) : 'unknown';
       if (wantModel && model !== wantModel) continue;
@@ -1090,7 +1084,7 @@ export async function usageOfficial(ctx, from, to, modelFilter) {
           }
         }
         const dm = modelOf(day.models, model);
-        const gm = modelOf(models, model);
+        const gm = modelOf(acc.models, model);
         dm.cost += cost;
         gm.cost += cost;
         if (canSplit) {
@@ -1105,16 +1099,53 @@ export async function usageOfficial(ctx, from, to, modelFilter) {
       }
     }
   }
+  return canSplit;
+}
+
+export async function usageOfficial(ctx, from, to, modelFilter) {
+  const wantModel = modelFilter && modelFilter !== 'all' ? String(modelFilter) : undefined;
+  let token;
+  try {
+    const record = await ctx.credentials?.readRecord?.(ACCOUNT_RECORD_KEY);
+    token = record?.payload?.token;
+  } catch {
+    token = undefined;
+  }
+  if (typeof token !== 'string' || token.length === 0) {
+    return { mode: 'official', from, to, days: [], hours: [], totals: emptyUsageBucket(), error: 'not-logged' };
+  }
+
+  const start = dayStartSec(from);
+  const end = dayStartSec(to) + 86400;
+  const chunks = [];
+  for (let cursor = start; cursor < end; cursor += OFFICIAL_CHUNK_SPAN) {
+    chunks.push([cursor, Math.min(end, cursor + OFFICIAL_CHUNK_SPAN)]);
+  }
+
+  const acc = { days: {}, hours: {}, models: {} };
+  let canSplit = chunks.length <= 1;
+  for (let index = 0; index < chunks.length; index += 4) {
+    const batch = chunks.slice(index, index + 4);
+    const results = await Promise.all(batch.map(([chunkStart, chunkEnd]) => fetchOfficialChunk(token, chunkStart, chunkEnd)));
+    for (const result of results) {
+      if (result.amountRes?.unauthorized || result.costRes?.unauthorized) {
+        return { mode: 'official', from, to, days: [], hours: [], totals: emptyUsageBucket(), error: 'unauthorized' };
+      }
+      const amountBody = result.amountRes?.data?.data?.biz_data ?? result.amountRes?.data?.biz_data ?? {};
+      const costBody = result.costRes?.data?.data?.biz_data ?? result.costRes?.data?.biz_data ?? {};
+      canSplit = ingestOfficial(amountBody, costBody, wantModel, from, to, acc);
+    }
+  }
 
   const totals = emptyUsageBucket();
-  for (const day of Object.values(days)) {
+  for (const day of Object.values(acc.days)) {
     totals.requests += day.requests;
     totals.cost += day.cost;
     totals.peakCost += day.peakCost;
     totals.offPeakCost += day.offPeakCost;
     addTokens(totals.tokens, day.tokens);
   }
-  totals.models = Object.entries(models).map(([model, value]) => ({ model, ...value }));
+  totals.models = Object.entries(acc.models).map(([model, value]) => ({ model, ...value }));
 
   const account = await readAccount(ctx).catch(() => undefined);
   const local = usageLocal(from, to, modelFilter);
@@ -1125,10 +1156,10 @@ export async function usageOfficial(ctx, from, to, modelFilter) {
     peakSplit: canSplit,
     localDays: local.days,
     localTotals: local.totals,
-    days: Object.entries(days)
+    days: Object.entries(acc.days)
       .sort(([a], [b]) => (a < b ? -1 : 1))
       .map(([date, value]) => ({ date, ...value, models: Object.entries(value.models).map(([model, m]) => ({ model, ...m })) })),
-    hours: Object.entries(hours)
+    hours: Object.entries(acc.hours)
       .sort(([a], [b]) => (a < b ? -1 : 1))
       .map(([time, value]) => ({ time, ...value })),
     totals,
