@@ -775,6 +775,12 @@ window.__ModuleLoader__.load({
       }
       if (series.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
 
+      const axisSlots = series.map((item, index) => {
+        if (singleDay) return index % 6 === 0 || index === series.length - 1 ? item.label : '';
+        if (index === 0 || index === Math.floor(series.length / 2) || index === series.length - 1) return item.label.slice(5);
+        return '';
+      });
+
       const max = Math.max.apply(null, series.map((item) => item.total).concat([0.0001]));
       const height = 120;
 
@@ -804,8 +810,8 @@ window.__ModuleLoader__.load({
         gridLines,
         h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 6 } }, bars));
 
-      const xAxis = h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: MUTED, marginTop: 3 } },
-        xLabels.map((label, index) => h('span', { key: index }, label)));
+      const xAxis = h('div', { style: { display: 'flex', fontSize: 9.5, color: MUTED, marginTop: 3 } },
+        axisSlots.map((label, index) => h('span', { key: index, style: { flex: '1 1 0', textAlign: 'center', whiteSpace: 'nowrap' } }, label)));
 
       const axis = h('div', { style: { display: 'flex', gap: 6 } },
         h('div', { style: { width: 58, height: height, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontSize: 10, color: MUTED, textAlign: 'right' } }, yLabels),
