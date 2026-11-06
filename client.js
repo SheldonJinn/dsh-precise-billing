@@ -756,6 +756,36 @@ window.__ModuleLoader__.load({
       sectionTitle: { fontSize: 12.5, fontWeight: 600, marginBottom: 8 },
     };
 
+    function applyLocalSplit(data) {
+      if (!data || data.mode !== 'official' || data.peakSplit !== false || !Array.isArray(data.localDays)) return data;
+      const map = {};
+      for (const day of data.localDays) map[day.date] = day;
+      const days = (data.days || []).map((day) => {
+        const local = map[day.date];
+        if (!local) return day;
+        return {
+          ...day,
+          peakCost: local.peakCost || 0,
+          offPeakCost: local.offPeakCost || 0,
+          models: (day.models || []).map((model) => {
+            const hit = (local.models || []).find((item) => item.model === model.model);
+            return hit ? { ...model, peakCost: hit.peakCost || 0, offPeakCost: hit.offPeakCost || 0 } : model;
+          }),
+        };
+      });
+      const localModels = (data.localTotals && data.localTotals.models) || [];
+      const totals = {
+        ...data.totals,
+        peakCost: (data.localTotals && data.localTotals.peakCost) || 0,
+        offPeakCost: (data.localTotals && data.localTotals.offPeakCost) || 0,
+        models: (data.totals.models || []).map((model) => {
+          const hit = localModels.find((item) => item.model === model.model);
+          return hit ? { ...model, peakCost: hit.peakCost || 0, offPeakCost: hit.offPeakCost || 0 } : model;
+        }),
+      };
+      return { ...data, days, totals };
+    }
+
     function UsageStatCard({ label, value, hint }) {
       return h('div', { style: usagePanelStyles.card },
         h('div', { style: usagePanelStyles.cardLabel }, label),
@@ -817,7 +847,7 @@ window.__ModuleLoader__.load({
 
       if (!open || !ReactDOM || typeof document === 'undefined') return null;
 
-      const data = state.status === 'ok' ? state.data : undefined;
+      const data = state.status === 'ok' ? applyLocalSplit(state.data) : undefined;
       const totals = (data && data.totals) || { tokens: {}, cost: 0, peakCost: 0, offPeakCost: 0, requests: 0, models: [] };
       const tokens = totals.tokens || {};
       const hit = usageHitRate(tokens);
@@ -878,7 +908,7 @@ window.__ModuleLoader__.load({
               h('div', { style: usagePanelStyles.cards },
                 h(UsageStatCard, { label: 'Tokens', value: fmtNumberCn(usageTotalTokens(tokens)), hint: '命中率 ' + (hit * 100).toFixed(2) + '%' }),
                 h(UsageStatCard, { label: 'API 请求次数', value: fmtNumberCn(totals.requests) + ' 次', hint: (mode === 'official' ? '官方请求统计' : '本地会话统计') }),
-                h(UsageStatCard, { label: '消费金额', value: fmtMoneyCn(totals.cost), hint: '峰 ' + fmtMoneyCn(totals.peakCost) + ' · 闲 ' + fmtMoneyCn(totals.offPeakCost) }),
+                h(UsageStatCard, { label: '消费金额', value: fmtMoneyCn(totals.cost), hint: '峰 ' + fmtMoneyCn(totals.peakCost) + ' · 闲 ' + fmtMoneyCn(totals.offPeakCost) + (data && data.peakSplit === false ? '（本地拆分）' : '') }),
                 h(UsageStatCard, { label: '余额', value: balance === undefined ? '—' : fmtMoneyCn(balance), hint: '官方账户余额' })),
               tab === 'trend'
                 ? h('div', null,
@@ -943,7 +973,7 @@ window.__ModuleLoader__.load({
     function addCellUsage(cell, day, useLocalSplit) {
       const peak = useLocalSplit ? day.localPeakCost ?? 0 : day.peakCost ?? 0;
       const off = useLocalSplit ? day.localOffPeakCost ?? 0 : day.offPeakCost ?? 0;
-      const total = useLocalSplit ? (peak + off) || day.cost || 0 : day.cost ?? 0;
+      const total = Number.isFinite(day.cost) && day.cost > 0 ? day.cost : peak + off;
       cell.tokens += usageTotalTokens(day.tokens || {});
       cell.cost += total;
       cell.peakCost += peak;
