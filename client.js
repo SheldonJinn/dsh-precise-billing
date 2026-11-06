@@ -853,11 +853,13 @@ window.__ModuleLoader__.load({
                 },
               }, key === 'trend' ? '用量趋势' : '用量日历'))),
             h('div', { style: usagePanelStyles.controls },
-              h('select', {
-                value: rangeKey,
-                onChange: (event) => setRangeKey(event.target.value),
-                style: { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' },
-              }, USAGE_RANGES.map((item) => h('option', { key: item.value, value: item.value }, item.label))),
+              tab === 'trend'
+                ? h('select', {
+                    value: rangeKey,
+                    onChange: (event) => setRangeKey(event.target.value),
+                    style: { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' },
+                  }, USAGE_RANGES.map((item) => h('option', { key: item.value, value: item.value }, item.label)))
+                : null,
               h('div', { style: { display: 'inline-flex', border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, overflow: 'hidden' } },
                 ['official', 'local'].map((key) => h('button', {
                   key,
