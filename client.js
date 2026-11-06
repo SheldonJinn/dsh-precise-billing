@@ -1,0 +1,1228 @@
+/**
+ * precise-billing · Client half
+ *  - 输入框下方 / 会话标题栏 费用条：本会话、今日、累计
+ *  - 侧栏卡片：今日消费 / 累计消费 / 峰谷进度（红=峰时，绿=闲时）
+ *  - 设置 → 精确计费：分组表单 + 实时预览
+ */
+window.__ModuleLoader__.load({
+  id: '@local/precise-billing',
+  factory(require) {
+    const React = require('react');
+    const h = React.createElement;
+    let slotsService;
+    function openBillingSettings() {
+      try {
+        const entries = typeof slotsService?.entries === 'function' ? slotsService.entries('sidebar.settings') : [];
+        for (const entry of entries) {
+          const seat = entry && entry.store;
+          const api = seat && typeof seat.create === 'function' ? seat.create() : undefined;
+          const openSection = api && api.actions && api.actions.openSection;
+          if (typeof openSection === 'function') {
+            openSection('precise-billing');
+            return true;
+          }
+        }
+      } catch {
+        /* 设置导航不可用：静默失败，不影响卡片渲染 */
+      }
+      return false;
+    }
+
+    const ReactDOM = (() => {
+      try {
+        return require('react-dom');
+      } catch {
+        return undefined;
+      }
+    })();
+    const POLL_MS = 5000;
+
+    const DEFAULT_SETTINGS = {
+      position: 'composer',
+      fontFamily: 'inherit',
+      fontSize: 11,
+      color: '',
+      showToday: true,
+      showTotal: true,
+      chipPhase: true,
+      chipSession: true,
+      chipToday: true,
+      chipTotal: true,
+      chipBalance: true,
+      sidebar: true,
+      sidebarStyle: 'standard',
+      sidebarToday: true,
+      sidebarTotal: true,
+      sidebarPeak: true,
+      sidebarProgress: true,
+      pollMs: 60000,
+      chipPollMs: 10000,
+      sidebarPollMs: 30000,
+      amountSource: 'local',
+      custom: {
+        a1: true, a2: true, a3: true, a4: true,
+        b1: true, b2: true, b3: true, b4: true,
+        c1: true, c2: true,
+        d1: true, d2: true, d3: true, d4: true, d5: true, d6: true,
+      },
+    };
+
+    const FONT_LABELS = {
+      inherit: '跟随界面',
+      yahei: '微软雅黑',
+      system: '系统界面字体',
+      mono: '等宽（Consolas）',
+      serif: '衬线（Georgia）',
+    };
+
+    const PEAK_COLOR = '#e07f0a';
+    const OFF_COLOR = '#2e9e63';
+    const SPLIT_COLOR = '#000000';
+    const MUTED = 'var(--dsw-alias-label-secondary, #666)';
+
+    // 与宿主一致的峰谷规则（法定节假日全天闲时）
+    const HOLIDAYS = new Set([
+      '2025-01-01', '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31', '2025-02-01',
+      '2025-02-02', '2025-02-03', '2025-02-04', '2025-04-04', '2025-04-05', '2025-04-06',
+      '2025-05-01', '2025-05-02', '2025-05-03', '2025-05-04', '2025-05-05', '2025-05-31',
+      '2025-06-01', '2025-06-02', '2025-10-01', '2025-10-02', '2025-10-03', '2025-10-04',
+      '2025-10-05', '2025-10-06', '2025-10-07', '2025-10-08',
+      '2026-01-01', '2026-01-02', '2026-01-03', '2026-02-15', '2026-02-16', '2026-02-17',
+      '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-21', '2026-02-22', '2026-02-23',
+      '2026-04-04', '2026-04-05', '2026-04-06', '2026-05-01', '2026-05-02', '2026-05-03',
+      '2026-05-04', '2026-05-05', '2026-06-19', '2026-06-20', '2026-06-21', '2026-09-25',
+      '2026-09-26', '2026-09-27', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04',
+      '2026-10-05', '2026-10-06', '2026-10-07',
+    ]);
+
+    function dateKey(ms) {
+      const d = new Date(ms);
+      const p = (n) => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    }
+
+    function isPeakAt(ms) {
+      const d = new Date(ms);
+      const wd = d.getDay();
+      if (wd === 0 || wd === 6) return false;
+      if (HOLIDAYS.has(dateKey(ms))) return false;
+      const hour = d.getHours();
+      return (hour >= 9 && hour < 12) || (hour >= 14 && hour < 18);
+    }
+
+    const MINUTE = 60 * 1000;
+
+    /** 本地计算当前时段：[since, until)，以及下一段的结束时刻 */
+    function phaseModel(now) {
+      const peak = isPeakAt(now);
+      const base = Math.floor(now / MINUTE) * MINUTE;
+      let until = base;
+      for (let i = 0; i < 60 * 96; i++) {
+        until += MINUTE;
+        if (isPeakAt(until) !== peak) break;
+      }
+      let since = base;
+      for (let i = 0; i < 60 * 96; i++) {
+        if (isPeakAt(since - MINUTE) !== peak) break;
+        since -= MINUTE;
+      }
+      let nextUntil = until;
+      const nextPeak = !peak;
+      for (let i = 0; i < 60 * 96; i++) {
+        nextUntil += MINUTE;
+        if (isPeakAt(nextUntil) !== nextPeak) break;
+      }
+      const span = Math.max(1, until - since);
+      const elapsed = Math.max(0, now - since);
+      const progress = Math.min(100, (elapsed / span) * 100);
+      const weekday = new Date(now).getDay();
+      return {
+        peak,
+        since,
+        until,
+        nextUntil,
+        left: Math.max(0, until - now),
+        elapsed,
+        progress,
+        remaining: Math.max(0, 100 - progress),
+        holiday: HOLIDAYS.has(dateKey(now)),
+        weekend: !HOLIDAYS.has(dateKey(now)) && (weekday === 0 || weekday === 6),
+      };
+    }
+
+    function moneyFull(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '—';
+      const fixed = n.toFixed(4);
+      const negative = fixed.startsWith('-');
+      const [int, dec] = (negative ? fixed.slice(1) : fixed).split('.');
+      const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      return '¥' + (negative ? '-' : '') + grouped + '.' + dec + '元';
+    }
+
+    function fmtTokensCN(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n <= 0) return '—';
+      if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+      if (n >= 1e4) return (n / 1e4).toFixed(2) + '万';
+      return String(Math.round(n));
+    }
+
+    function money(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '—';
+      const abs = Math.abs(n);
+      if (abs >= 1e8) return '¥' + (n / 1e8).toFixed(4) + '亿';
+      if (abs >= 1e4) return '¥' + (n / 1e4).toFixed(4) + '万';
+      return '¥' + n.toFixed(2);
+    }
+
+    function fmtTokens(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n <= 0) return '—';
+      if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+      if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+      if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+      return String(Math.round(n));
+    }
+
+    function cacheHitRate(tokens) {
+      if (!tokens) return '—';
+      const read = Number(tokens.cacheRead) || 0;
+      const miss = Number(tokens.input) || 0;
+      const write = Number(tokens.cacheWrite) || 0;
+      const total = read + miss + write;
+      if (total <= 0) return '—';
+      return ((read / total) * 100).toFixed(1) + '%';
+    }
+
+    function useAccount() {
+      const [state, setState] = React.useState({ status: 'loading' });
+      React.useEffect(() => {
+        let alive = true;
+        let timer = null;
+        const tick = async () => {
+          try {
+            const res = await fetch('/api/precise-billing/account', { cache: 'no-store' });
+            const data = await res.json();
+            if (alive && data?.ok) setState({ status: 'ok', account: data.account });
+            else if (alive) setState((prev) => (prev.status === 'ok' ? prev : { status: 'error' }));
+          } catch {
+            if (alive) setState((prev) => (prev.status === 'ok' ? prev : { status: 'error' }));
+          }
+          if (alive) timer = setTimeout(tick, 120000);
+        };
+        tick();
+        return () => {
+          alive = false;
+          if (timer) clearTimeout(timer);
+        };
+      }, []);
+      return state;
+    }
+
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function fmtClock(ms) {
+      const d = new Date(ms);
+      return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    }
+
+    /** 跨天时带上「月/日」，当天只显示时刻 */
+    function fmtClockSmart(ms, now) {
+      const d = new Date(ms);
+      return dateKey(ms) === dateKey(now)
+        ? fmtClock(ms)
+        : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + fmtClock(ms);
+    }
+
+    function fmtRange(a, b, now) {
+      return fmtClockSmart(a, now) + ' ~ ' + fmtClockSmart(b, now);
+    }
+
+    /** HH:mm:ss（不省略位） */
+    function fmtHMS(ms) {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      return pad2(Math.floor(total / 3600)) + ':' + pad2(Math.floor((total % 3600) / 60)) + ':' + pad2(total % 60);
+    }
+
+    function pct(value) {
+      return value.toFixed(2) + '%';
+    }
+
+    function coin() {
+      return h('svg', {
+        width: 14,
+        height: 14,
+        viewBox: '0 0 24 24',
+        style: { marginRight: 5, flex: '0 0 auto', opacity: 0.95 },
+        'aria-hidden': true,
+      },
+        h('circle', { cx: 12, cy: 12, r: 11, fill: 'currentColor' }),
+        h('text', {
+          x: 12,
+          y: 16.8,
+          textAnchor: 'middle',
+          fontSize: 14,
+          fontWeight: 700,
+          fill: '#ffffff',
+          fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+        }, '¥'),
+      );
+    }
+
+    function gearIcon(size = 14) {
+      return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
+        h('path', {
+          fill: 'currentColor',
+          d: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',
+        }));
+    }
+
+    function closeIcon(size = 14) {
+      return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
+        h('path', { d: 'M6 6L18 18M18 6L6 18', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' }));
+    }
+
+    function square(color) {
+      return h('i', {
+        style: { width: 7, height: 7, borderRadius: 1.5, background: color, display: 'inline-block', flex: '0 0 auto' },
+        'aria-hidden': true,
+      });
+    }
+
+    function dot(color) {
+      return h('i', {
+        style: { width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flex: '0 0 auto' },
+        'aria-hidden': true,
+      });
+    }
+
+    const POLL_CHOICES = [1000, 5000, 10000, 30000, 60000, 300000, 600000];
+
+    function useSummary(sessionId, pollKey = 'sidebarPollMs') {
+      const [state, setState] = React.useState({ status: 'loading' });
+      React.useEffect(() => {
+        let alive = true;
+        let timer = null;
+        let delay = pollKey === 'chipPollMs' ? 10000 : 30000;
+        const tick = async () => {
+          try {
+            const query = sessionId ? '?scope=summary&session=' + encodeURIComponent(sessionId) : '?scope=summary';
+            const res = await fetch('/api/precise-billing' + query, { cache: 'no-store' });
+            if (!res.ok) throw new Error('http ' + res.status);
+            const data = await res.json();
+            if (alive) {
+              setState({ status: 'ok', data });
+              const next = Number(data?.settings?.[pollKey]);
+              if (POLL_CHOICES.includes(next)) delay = next;
+            }
+          } catch {
+            if (alive) setState((prev) => (prev.status === 'ok' ? prev : { status: 'error' }));
+          }
+          if (alive) timer = setTimeout(tick, delay);
+        };
+        tick();
+        return () => {
+          alive = false;
+          if (timer) clearTimeout(timer);
+        };
+      }, [sessionId, pollKey]);
+      return state;
+    }
+
+    /** ---------------------------------------------------------- 费用条 -- */
+    function fmtTok(n) {
+      return Number(n || 0).toLocaleString('en-US');
+    }
+
+    /** 点击费用条弹出的「本会话明细」卡片 */
+    function SessionPanel({ detail, onClose, position, panelRef }) {
+      const chartRef = React.useRef(null);
+      React.useEffect(() => {
+        const el = chartRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      }, [detail]);
+      const s = detail;
+      const sub = s.subagents;
+      const total = (s.cost || 0) + (sub?.cost || 0);
+      const pct = ((s.cacheHitRate || 0) * 100).toFixed(1) + '%';
+      const rows = [
+        ['缓存命中', pct],
+        ['输入（未命中）', fmtTok(s.tokens.input)],
+        ['缓存读取', fmtTok(s.tokens.cacheRead)],
+        ['输出', fmtTok(s.tokens.output)],
+      ];
+      const allTurns = s.turns ?? [];
+      const turns = allTurns;
+      const peakTurns = Number(s.peakMessages ?? 0);
+      const offTurns = Math.max(0, Number(s.messages ?? 0) - peakTurns);
+      const sortedCosts = turns.map((turn) => turn.c || 0).sort((a, b) => a - b);
+      const p95 = sortedCosts.length > 0 ? sortedCosts[Math.min(sortedCosts.length - 1, Math.floor(sortedCosts.length * 0.95))] : 0;
+      const maxCost = Math.max(p95, 0.000001);
+      const chartRows = [];
+      for (let i = 0; i < turns.length; i += 25) chartRows.push(turns.slice(i, i + 25));
+      return h('div', {
+        ref: panelRef,
+        style: {
+          position: 'fixed',
+          left: (position?.left ?? 18) + 'px',
+          ...(position && position.top != null ? { top: position.top + 'px' } : { bottom: (position?.bottom ?? 96) + 'px' }),
+          zIndex: 9999,
+          width: 420,
+          padding: '12px 14px',
+          borderRadius: 10,
+          background: 'var(--dsw-alias-bg-layer-1, #fff)',
+          border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12))',
+          boxShadow: '0 10px 30px rgba(0,0,0,.18)',
+          color: 'var(--dsw-alias-label-secondary, #555)',
+          fontSize: 12,
+          lineHeight: 1.7,
+          userSelect: 'none',
+        },
+      },
+        h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 } },
+          h('span', { style: { fontWeight: 600, color: 'var(--dsw-alias-label-primary, #111)' } }, '本会话计费'),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+            h('button', {
+              type: 'button',
+              onClick: () => openBillingSettings(),
+              title: '打开精确计费设置',
+              style: { width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: 'inherit', opacity: 0.65, padding: 0 },
+            }, gearIcon(13)),
+            h('button', {
+              type: 'button',
+              onClick: onClose,
+              title: '关闭',
+              style: { width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 17, lineHeight: 1, color: 'inherit', opacity: 0.65, padding: 0 },
+            }, closeIcon(13)))),
+        h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '2px 0 2px' } },
+          h('span', { style: { fontSize: 22, fontWeight: 700, color: 'var(--dsw-alias-label-primary, #111)' } }, money(total))),
+        h('div', { style: { fontSize: 11, opacity: 0.85, marginBottom: 8 } },
+          '主会话 ' + money(s.cost) + (sub && sub.count > 0 ? ' + 子代理 ' + sub.count + ' 个 ' + money(sub.cost) : '') + ' = ' + money(total)),
+        ...rows.map(([label, value]) => h('div', { key: label, style: { display: 'flex', justifyContent: 'space-between', gap: 10 } },
+          h('span', null, label), h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, value))),
+        h('div', { style: { height: 1, background: 'var(--dsw-alias-border-l1, rgba(0,0,0,.08))', margin: '8px 0' } }),
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10 } },
+          h('span', null, '空闲时段'), h('span', null, money(s.offPeakCost))),
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10 } },
+          h('span', null, '高峰时段'), h('span', null, money(s.peakCost))),
+        turns.length > 0
+          ? h('div', { style: { marginTop: 8 } },
+              h('div', { style: { fontSize: 11, opacity: 0.8, marginBottom: 4 } }, '最近 ' + turns.length + ' 轮成本'),
+              h('div', { ref: chartRef, style: { maxHeight: 132, overflowY: 'auto', overflowX: 'hidden', paddingRight: 4 } },
+                ...chartRows.map((row, rowIndex) => h('div', {
+                key: 'row' + rowIndex,
+                style: { display: 'flex', alignItems: 'flex-end', gap: 2, height: 46, marginBottom: rowIndex === chartRows.length - 1 ? 0 : 8 },
+              }, row.map((turn, index) => h('div', {
+                key: index,
+                title: (turn.t ? fmtDateTime(turn.t) + ' · ' : '') + money(turn.c) + (turn.p ? ' · 峰时' : ' · 空闲'),
+                style: { flex: '0 0 13px', width: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: 2 },
+              },
+                h('span', {
+                  style: {
+                    fontSize: 7,
+                    lineHeight: 1,
+                    color: turn.p ? PEAK_COLOR : OFF_COLOR,
+                    fontVariantNumeric: 'tabular-nums',
+                    whiteSpace: 'nowrap',
+                  },
+                }, turn.c >= 1 ? turn.c.toFixed(1) : turn.c.toFixed(2)),
+                h('div', {
+                  style: {
+                    width: '100%',
+                    height: Math.min(34, Math.max(3, Math.round(Math.sqrt(turn.c / maxCost) * 32))) + 'px',
+                    borderRadius: 2,
+                    background: turn.p ? PEAK_COLOR : OFF_COLOR,
+                    opacity: 0.85,
+                  },
+                }))))),
+              h('div', { style: { display: 'flex', gap: 12, fontSize: 10, marginTop: 5, opacity: 0.85, flexWrap: 'wrap' } },
+                h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
+                  h('i', { style: { width: 8, height: 8, borderRadius: 2, background: PEAK_COLOR } }),
+                  '高峰 ' + peakTurns + ' 轮 · ' + money(s.peakCost)),
+                h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
+                  h('i', { style: { width: 8, height: 8, borderRadius: 2, background: OFF_COLOR } }),
+                  '空闲 ' + offTurns + ' 轮 · ' + money(s.offPeakCost)))))
+          : null);
+    }
+
+    function buildChip(settings, families, data, status, account, opts) {
+      const options = opts || {};
+      const official = settings.amountSource === 'official' && account?.logged === true;
+      const todayValue = official ? Number(account.todayCost) : data?.today?.cost;
+      const totalValue = official ? Number(account.consumedTotal) : data?.total?.cost;
+      const primary = data?.session ? money(data.session.cost) : data?.today ? money(data.today.cost) : status === 'error' ? '不可用' : '…';
+      const phaseNow = phaseModel(Date.now());
+      const parts = [];
+      if (settings.chipPhase !== false) {
+        parts.push(h('span', { key: 'phase', style: { color: phaseNow.peak ? PEAK_COLOR : OFF_COLOR, fontWeight: 600 } }, phaseNow.peak ? '峰时' : '闲时'));
+      }
+      if (settings.chipSession !== false) parts.push(h('span', { key: 'self' }, '本次 ' + primary));
+      if (settings.chipToday !== false && settings.showToday !== false) parts.push(h('span', { key: 'today' }, '今日 ' + money(todayValue)));
+      if (settings.chipTotal !== false && settings.showTotal !== false) parts.push(h('span', { key: 'total' }, '累计 ' + money(totalValue)));
+      if (settings.chipBalance !== false && account?.logged === true && Number.isFinite(Number(account.balance))) parts.push(h('span', { key: 'balance' }, '余额 ' + money(Number(account.balance))));
+      if (data?.session?.unpricedMessages) parts.push(h('span', { key: 'warn', style: { color: 'var(--dsw-alias-state-warn-primary, #c98a00)' } }, '含未计价'));
+
+      const sess = data?.session;
+      const parts2 = [];
+      parts2.push(phaseNow.peak ? '峰时' : '闲时');
+      if (sess?.tokens) parts2.push('缓存命中 ' + cacheHitRate(sess.tokens));
+      parts2.push((data?.sessions ?? 0) + ' 个会话');
+
+      return h('div', {
+        onClick: options.onClick,
+        ref: options.innerRef,
+        onMouseEnter: options.onMouseEnter,
+        onMouseLeave: options.onMouseLeave,
+        title: [
+          '本次 ' + (data?.session ? money(data.session.cost) : '—') + ' · 今日 ' + money(todayValue) + ' · 累计 ' + money(totalValue) + ' · 余额 ' + (account?.logged === true ? money(Number(account.balance)) : '—'),
+          parts2.join(' · '),
+        ].join('\n'),
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          fontFamily: families[settings.fontFamily] || 'inherit',
+          fontSize: (settings.fontSize || 11) + 'px',
+          lineHeight: 1.6,
+          padding: '1px 8px',
+          borderRadius: 999,
+          color: settings.color || MUTED,
+          background: options.active || options.hovered
+            ? 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.07))'
+            : 'var(--dsw-alias-bg-layer-1, rgba(0,0,0,.03))',
+          border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
+          whiteSpace: 'nowrap',
+          userSelect: 'none',
+          cursor: options.onClick ? 'pointer' : 'default',
+          transition: 'background .15s ease',
+        },
+      }, ...parts);
+    }
+
+    function Chip(props) {
+      props = props || {};
+      const state = useSummary(props.sessionId, 'chipPollMs');
+      const accountState = useAccount();
+      const [open, setOpen] = React.useState(false);
+      const [detail, setDetail] = React.useState(undefined);
+      const [hovered, setHovered] = React.useState(false);
+      const [position, setPosition] = React.useState(undefined);
+      const chipRef = React.useRef(null);
+      const panelRef = React.useRef(null);
+      const data = state.data;
+      const settings = { ...DEFAULT_SETTINGS, ...(data?.settings || {}) };
+      const families = data?.fontFamilies || {};
+      const slot = props.__slot === 'header' ? 'header' : 'composer';
+
+      const place = React.useCallback(() => {
+        const node = chipRef.current;
+        if (!node || typeof window === 'undefined') return;
+        const rect = node.getBoundingClientRect();
+        const width = 420;
+        const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceAbove < 340 && spaceBelow > spaceAbove) {
+          setPosition({ left, top: rect.bottom + 8 });
+        } else {
+          setPosition({ left, bottom: Math.max(8, window.innerHeight - rect.top + 8) });
+        }
+      }, []);
+
+      React.useEffect(() => {
+        if (!open) return undefined;
+        place();
+        const onPointerDown = (event) => {
+          const target = event.target;
+          if (chipRef.current && chipRef.current.contains(target)) return;
+          if (panelRef.current && panelRef.current.contains(target)) return;
+          setOpen(false);
+        };
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') setOpen(false);
+        };
+        document.addEventListener('mousedown', onPointerDown, true);
+        document.addEventListener('keydown', onKeyDown, true);
+        window.addEventListener('resize', place);
+        window.addEventListener('scroll', place, true);
+        return () => {
+          document.removeEventListener('mousedown', onPointerDown, true);
+          document.removeEventListener('keydown', onKeyDown, true);
+          window.removeEventListener('resize', place);
+          window.removeEventListener('scroll', place, true);
+        };
+      }, [open, place]);
+
+      React.useEffect(() => {
+        if (!open || !props.sessionId) return undefined;
+        let alive = true;
+        fetch('/api/precise-billing/session?session=' + encodeURIComponent(props.sessionId), { cache: 'no-store' })
+          .then((res) => res.json())
+          .then((json) => {
+            if (alive && json?.ok) setDetail(json.session);
+          })
+          .catch(() => {});
+        return () => {
+          alive = false;
+        };
+      }, [open, props.sessionId]);
+
+      if (settings.position !== slot) return null;
+      const chip = buildChip(settings, families, data, state.status, accountState.account, {
+        onClick: () => setOpen((value) => !value),
+        active: open,
+        hovered,
+        innerRef: chipRef,
+        onMouseEnter: () => setHovered(true),
+        onMouseLeave: () => setHovered(false),
+      });
+      if (!open || !detail) return chip;
+      const panel = h(SessionPanel, { detail, onClose: () => setOpen(false), position, panelRef });
+      if (ReactDOM && typeof ReactDOM.createPortal === 'function' && typeof document !== 'undefined') {
+        return h(React.Fragment, null, chip, ReactDOM.createPortal(panel, document.body));
+      }
+      return chip;
+    }
+
+    function withSlot(name) {
+      return function Wrapped(props) {
+        return h(Chip, { ...(props || {}), __slot: name });
+      };
+    }
+
+    /** -------------------------------------------------------- 峰谷区块 -- */
+    const STYLE_ID = 'precise-billing-style';
+
+    function ensureStyles() {
+      if (typeof document === 'undefined') return;
+      let style = document.getElementById(STYLE_ID);
+      if (!style) {
+        style = document.createElement('style');
+        style.id = STYLE_ID;
+        document.head.appendChild(style);
+      }
+      style.textContent = [
+        '.pb-bill-seg{container-type:inline-size}',
+        '.pb-bill-bar-label{color:#fff !important;-webkit-text-fill-color:#fff !important;',
+        'text-shadow:none !important;font-weight:600;line-height:1;display:inline-flex;align-items:center;height:100%;',
+        'font-size:clamp(9px,10cqw,12px);font-variant-numeric:tabular-nums;white-space:nowrap;-webkit-font-smoothing:antialiased}',
+
+        '.pb-gear{transition:opacity .15s ease}.pb-gear:hover{opacity:1 !important}',
+        '.pb-field{transition:background .12s ease;border-radius:4px}.pb-field:hover{background:rgba(0,0,0,.04)}',
+        '@keyframes pb-bill-cursor{0%,100%{opacity:1}50%{opacity:.45}}',
+        '.pb-bill-cursor{animation:pb-bill-cursor 1s ease-in-out infinite}',
+        '.pb-bill-col-end{align-items:flex-end !important;text-align:right}',
+        '.pb-bill-col-end > div:first-child{justify-content:flex-end}',
+      ].join('');
+    }
+
+    function peakBar(phase, flags = {}) {
+      const color = phase.peak ? PEAK_COLOR : OFF_COLOR;
+      const progress = Math.max(0, Math.min(100, phase.progress));
+      const remaining = Math.max(0, 100 - progress);
+      const spanMs = Math.max(1, phase.until - phase.since);
+      const cellMinutes = spanMs / 20 / 60000;
+      const showTicks = flags.b2 !== false;
+      const showCursor = flags.b3 !== false;
+      const showTooltip = flags.b4 !== false;
+      const ticks = [];
+      if (showTicks) for (let i = 1; i < 20; i++) ticks.push(((i / 20) * 100).toFixed(3));
+
+      const onEnter = showTooltip ? (event) => {
+        const node = event.currentTarget;
+        node.title = [
+          '每格相当于' + (cellMinutes >= 10 ? Math.round(cellMinutes) : cellMinutes.toFixed(1)) + '分钟，目前' + (phase.peak ? '峰时' : '闲时') + '进度' + progress.toFixed(2) + '%。',
+          fmtDuration(phase.left) + '后，' + fmtDateTime(phase.until) + '转' + (phase.peak ? '闲时' : '峰时') + '。',
+        ].join('\n');
+      } : undefined;
+      const onLeave = showTooltip ? (event) => { event.currentTarget.removeAttribute('title'); } : undefined;
+
+      return h('div', {
+        onMouseEnter: onEnter,
+        onMouseLeave: onLeave,
+        style: {
+          position: 'relative',
+          height: 7,
+          margin: '5px 0 2px',
+          borderRadius: 0,
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+          background: 'transparent',
+          border: '1px solid #5b6470',
+        },
+      },
+        h('div', {
+          style: {
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: 'calc(' + remaining.toFixed(2) + '% + 1px)',
+            background: color,
+          },
+        }),
+        showTicks
+          ? ticks.map((pct, index) => h('div', {
+              key: 'tick' + index,
+              style: { position: 'absolute', left: pct + '%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.5)' },
+            }))
+          : null,
+        showCursor
+          ? h('div', {
+              className: 'pb-bill-cursor',
+              style: { position: 'absolute', left: 'calc(' + progress.toFixed(2) + '% - 1.5px)', top: 0, bottom: 0, width: 3, background: '#ffffff', borderRadius: 0 },
+            })
+          : null);
+    }
+
+    function peakRow(color, label, right) {
+      return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } },
+        h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 5 } }, dot(color), h('span', null, label)),
+        h('span', null, right));
+    }
+
+    function buildPeakBlock(settings, phase, dense) {
+      if (!phase) return [];
+      const currentText = phase.peak ? '目前峰时' : '目前闲时';
+      const nextText = phase.peak ? '闲时' : '峰时';
+      const currentColor = phase.peak ? PEAK_COLOR : OFF_COLOR;
+      const nextColor = phase.peak ? OFF_COLOR : PEAK_COLOR;
+      const nodes = [];
+
+      if (settings.sidebarProgress !== false) nodes.push(peakBar(phase));
+
+      if (dense) {
+        nodes.push(h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' } },
+          h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 5 } },
+            dot(currentColor),
+            currentText),
+          h('span', null, fmtClock(phase.until) + ' 转' + nextText + ' · 距离 ' + fmtHMS(phase.left))));
+        return nodes;
+      }
+
+      nodes.push(peakRow(currentColor, currentText, ''));
+      nodes.push(h('div', { style: { opacity: 0.9 } }, fmtClock(phase.since) + ' ~ ' + fmtClock(phase.until)));
+      nodes.push(h('div', { style: { opacity: 0.9 } }, '已过 ' + fmtHMS(phase.elapsed)));
+      nodes.push(peakRow(nextColor, fmtClock(phase.until) + ' 转' + nextText, ''));
+      nodes.push(h('div', { style: { opacity: 0.9 } }, fmtClock(phase.until) + ' ~ ' + fmtClock(phase.nextUntil)));
+      nodes.push(h('div', { style: { opacity: 0.9 } }, '距离 ' + fmtHMS(phase.left)));
+      return nodes;
+    }
+
+    /** -------------------------------------------------------- 侧栏卡片 -- */
+    function fmtDateTime(ms) {
+      const d = new Date(ms);
+      const p = (n) => String(n).padStart(2, '0');
+      return p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+
+    function fmtDuration(ms) {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      const days = Math.floor(total / 86400);
+      const hours = Math.floor((total % 86400) / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const seconds = total % 60;
+      const p = (n) => String(n).padStart(2, '0');
+      return p(days) + '天' + p(hours) + '小时' + p(minutes) + '分' + p(seconds) + '秒';
+    }
+
+    function resolveFlags(settings) {
+      const all = {
+        a1: true, a2: true, a3: true, a4: true,
+        b1: true, b2: true, b3: true, b4: true,
+        c1: true, c2: true,
+        d1: true, d2: true, d3: true, d4: true, d5: true, d6: true,
+      };
+      const style = settings.sidebarStyle === 'merged' ? 'standard' : (settings.sidebarStyle || 'standard');
+      if (style === 'custom') return { ...all, ...(settings.custom || {}) };
+      if (style === 'compact') {
+        return { ...all, a3: false, a4: false, b1: false, b2: false, b3: false, b4: false, c1: true, c2: true, d1: false, d2: false, d3: false, d4: false, d5: false, d6: false };
+      }
+      if (style === 'simple') {
+        return { ...all, d1: false, d2: false, d3: false, d4: false, d5: false, d6: false };
+      }
+      return all;
+    }
+
+    function buildDetails(phase, now, flags) {
+      const curColor = phase.peak ? PEAK_COLOR : OFF_COLOR;
+      const nextColor = phase.peak ? OFF_COLOR : PEAK_COLOR;
+      const curText = phase.peak ? '峰时' : '闲时';
+      const nextText = phase.peak ? '闲时' : '峰时';
+      const rows = [];
+      const row = (left, right) => h('div', {
+        style: { display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
+      }, left || h('span'), right || h('span'));
+
+      const curLabel = flags.d1 ? h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 5 } }, dot(curColor), '目前' + curText) : null;
+      const curRange = flags.d2 ? fmtDateTime(phase.since) + ' ~ ' + fmtDateTime(phase.until) : null;
+      const curElapsed = flags.d3 ? '已过 ' + fmtDuration(phase.elapsed) : null;
+
+      if (curLabel || curRange || curElapsed) {
+        const inlineRight = curRange || curElapsed;
+        rows.push(row(curLabel, inlineRight ? h('span', { style: { opacity: 0.9, whiteSpace: 'nowrap' } }, inlineRight) : null));
+        if (curRange && curElapsed) {
+          rows.push(h('div', { style: { textAlign: 'right' } }, curElapsed));
+        }
+      }
+
+      const nextLabel = flags.d4 ? h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 5 } }, dot(nextColor), '距离' + nextText) : null;
+      const nextRange = flags.d5 ? fmtDateTime(phase.until) + ' ~ ' + fmtDateTime(phase.nextUntil) : null;
+      const remaining = flags.d6 ? '剩余 ' + fmtDuration(phase.left) : null;
+
+      if (nextLabel || nextRange || remaining) {
+        const inlineRight = nextRange || remaining;
+        rows.push(row(nextLabel, inlineRight ? h('span', { style: { opacity: 0.9, whiteSpace: 'nowrap' } }, inlineRight) : null));
+        if (nextRange && remaining) {
+          rows.push(h('div', { style: { textAlign: 'right' } }, remaining));
+        }
+      }
+
+      return rows;
+    }
+
+    function buildSidebar(settings, families, data, account, now, wide) {
+      const phase = phaseModel(now);
+      const flags = resolveFlags(settings);
+      const official = settings.amountSource === 'official' && account?.logged === true;
+      const todayValue = official ? Number(account.todayCost) : Number(data?.today?.cost);
+      const totalValue = official ? Number(account.consumedTotal) : Number(data?.total?.cost);
+      const todayText = money(todayValue);
+      const totalText = money(totalValue);
+      const layout = settings.sidebarStyle || 'standard';
+
+      const base = {
+        fontFamily: families[settings.fontFamily] || 'inherit',
+        fontSize: Math.round((settings.fontSize || 11) * 1.1) + 'px',
+        lineHeight: 1.5,
+        color: settings.color || MUTED,
+        userSelect: 'none',
+        cursor: 'default',
+        minWidth: 0,
+        width: '100%',
+        alignSelf: 'stretch',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+      };
+
+      const gridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 1, alignItems: 'center', paddingRight: 16 };
+
+      const title = '累计消费 ' + totalText + ' · 账户余额 ' + money(Number(account?.balance)) + '\n' +
+        (phase.peak ? '目前峰时' : '目前闲时') + ' 进度 ' + pct(phase.progress) + ' · ' + fmtClock(phase.until) + ' 转' + (phase.peak ? '闲时' : '峰时');
+
+      if (!wide) {
+        return h('div', { title, style: { ...base, alignItems: 'center', fontSize: 10, gap: 2, padding: '4px 0' } },
+          h('span', { style: { color: phase.peak ? PEAK_COLOR : OFF_COLOR } }, phase.peak ? '峰' : '谷'),
+          h('span', null, todayText),
+        );
+      }
+
+      const logged = account?.logged === true;
+      const monthCostText = logged ? money(Number(account.monthCost)) : '—';
+      const balanceText = logged && Number.isFinite(Number(account.balance)) ? money(Number(account.balance)) : '—';
+
+      const gearNode = h('button', {
+        type: 'button',
+        className: 'pb-gear',
+        title: '打开精确计费设置',
+        onClick: () => openBillingSettings(),
+        style: { position: 'absolute', top: 0, right: 0, border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 1px', color: 'var(--dsw-alias-label-secondary, #666)', fontSize: 12, lineHeight: 1, opacity: 0.45 },
+      }, gearIcon(12));
+
+      const cell = (label, value, full) => h('div', {
+        style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 },
+      },
+        h('span', { style: { whiteSpace: 'nowrap' } }, label),
+        h('span', { style: { whiteSpace: 'nowrap', textAlign: 'right', cursor: full ? 'help' : 'default' }, title: full || undefined }, value));
+
+      const cells = [];
+      if (flags.a1) cells.push(cell('累计消费', totalText, moneyFull(totalValue)));
+      if (flags.a2) cells.push(cell('账户余额', balanceText, moneyFull(Number(account?.balance))));
+      if (flags.a3) cells.push(cell('今日消费', todayText, moneyFull(todayValue)));
+      if (flags.a4) cells.push(cell('本月消费', monthCostText, moneyFull(Number(account?.monthCost))));
+
+      const top = cells.length > 0
+        ? h('div', {
+            style: { ...gridStyle, fontWeight: 600 },
+          }, ...cells)
+        : null;
+
+      const barNode = flags.b1 ? peakBar(phase, flags) : null;
+
+      const curColor = phase.peak ? PEAK_COLOR : OFF_COLOR;
+      const curLabel = phase.peak ? '峰时' : '闲时';
+      const infoPair = (label, value, align) => h('div', {
+        style: { display: 'flex', justifyContent: 'space-between', gap: 8, minWidth: 0 },
+      },
+        h('span', { style: { color: curColor, fontWeight: 700, whiteSpace: 'nowrap' } }, label),
+        h('span', { style: { color: curColor, fontWeight: 700, whiteSpace: 'nowrap' } }, value));
+
+      const infoNode = (flags.c1 || flags.c2)
+        ? h('div', {
+            style: { ...gridStyle, margin: '1px 0' },
+          },
+            flags.c1 ? infoPair(curLabel + '已过', phase.progress.toFixed(2) + '%', 'left') : h('span'),
+            flags.c2 ? infoPair(curLabel + '剩余', (100 - phase.progress).toFixed(2) + '%', 'right') : h('span'))
+        : null;
+
+      const detailRows = buildDetails(phase, now, flags);
+      const detailsNode = detailRows.length > 0
+        ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 1, marginTop: 1 } }, ...detailRows)
+        : null;
+
+      return h('div', { title, style: { ...base, gap: 2, padding: '2px 2px 4px' } }, top, barNode, infoNode, detailsNode, gearNode);
+    }
+
+    function SidebarCard(props) {
+      props = props || {};
+      const state = useSummary(undefined, 'sidebarPollMs');
+      const accountState = useAccount();
+      const [now, setNow] = React.useState(Date.now());
+      React.useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(timer);
+      }, []);
+      const data = state.data;
+      const settings = { ...DEFAULT_SETTINGS, ...(data?.settings || {}) };
+      if (settings.sidebar === false) return null;
+      return buildSidebar(settings, data?.fontFamilies || {}, data, accountState.account, now, props.wide !== false);
+    }
+
+    /** ------------------------------------------------------------ 设置页 -- */
+    const inputStyle = {
+      fontSize: 12,
+      padding: '5px 8px',
+      borderRadius: 6,
+      border: '1px solid rgba(0,0,0,.30)',
+      background: 'var(--dsw-alias-bg-layer-1, #fff)',
+      color: 'var(--dsw-alias-label-primary, #111)',
+      width: 160,
+      boxSizing: 'border-box',
+    };
+
+    function Section({ title, desc, children, extra }) {
+      return h('section', {
+        style: {
+          border: '2px solid var(--dsw-alias-border-l2, rgba(0,0,0,.16))',
+          borderRadius: 10,
+          padding: '13px 16px 6px',
+          marginBottom: 12,
+          background: 'var(--dsw-alias-bg-layer-1, rgba(0,0,0,.015))',
+        },
+      },
+        h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } },
+          h('h3', { style: { fontSize: 12.5, fontWeight: 600, margin: 0, color: 'var(--dsw-alias-label-primary, #111)' } }, title),
+          extra || null),
+        desc ? h('p', { style: { fontSize: 11, color: MUTED, margin: '4px 0 8px', lineHeight: 1.6 } }, desc) : null,
+        children);
+    }
+
+    function Field({ label, hint, children }) {
+      const [hovered, setHovered] = React.useState(false);
+      return h('div', {
+        onMouseEnter: () => setHovered(true),
+        onMouseLeave: () => setHovered(false),
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '6px 6px',
+          margin: '0 -6px',
+          borderRadius: 4,
+          transition: 'background .12s ease',
+          background: hovered ? 'rgba(0,0,0,.04)' : 'transparent',
+          borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.06))',
+        },
+      },
+        h('div', { style: { width: 92, flex: '0 0 92px' } },
+          h('div', { style: { fontSize: 12, color: 'var(--dsw-alias-label-primary, #111)' } }, label),
+          hint ? h('div', { style: { fontSize: 10, color: MUTED, marginTop: 1, lineHeight: 1.4 } }, hint) : null),
+        h('div', { style: { flex: '1 1 0', display: 'flex', justifyContent: 'flex-end', minWidth: 0 } }, children));
+    }
+
+    function Segmented({ value, options, onChange }) {
+      return h('div', {
+        style: {
+          display: 'inline-flex',
+          border: '1px solid rgba(0,0,0,.30)',
+          borderRadius: 7,
+          overflow: 'hidden',
+          background: 'transparent',
+        },
+      }, options.map((option) => h('button', {
+        key: option.value,
+        type: 'button',
+        onClick: () => onChange(option.value),
+        style: {
+          padding: '5px 11px',
+          fontSize: 11,
+          border: 'none',
+          cursor: 'pointer',
+          background: value === option.value ? 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.08))' : 'transparent',
+          color: 'var(--dsw-alias-label-primary, #111)',
+          fontWeight: value === option.value ? 600 : 400,
+          whiteSpace: 'nowrap',
+        },
+      }, option.label)));
+    }
+
+    function Check({ label, checked, onChange, flush }) {
+      return h('label', { style: { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, marginLeft: flush ? 0 : 14, cursor: 'pointer' } },
+        h('input', { type: 'checkbox', checked, onChange: (e) => onChange(e.target.checked), style: { margin: 0, flex: '0 0 auto' } }),
+        label);
+    }
+
+    class PageBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { error: null };
+      }
+      static getDerivedStateFromError(error) {
+        return { error };
+      }
+      componentDidCatch(error) {
+        try {
+          console.error('[precise-billing] settings page error', error);
+        } catch {}
+      }
+      render() {
+        if (this.state.error) {
+          return h('div', {
+            style: { padding: 16, fontSize: 12, color: 'var(--dsw-alias-state-error-primary, #c00)', whiteSpace: 'pre-wrap', lineHeight: 1.7 },
+          }, '精确计费设置页出错：\n' + String(this.state.error && this.state.error.message ? this.state.error.message : this.state.error));
+        }
+        return this.props.children;
+      }
+    }
+
+    function SettingsPage() {
+      const [state, setState] = React.useState({ status: 'loading' });
+      const [draft, setDraft] = React.useState(null);
+      const [saved, setSaved] = React.useState('');
+      const [dirty, setDirty] = React.useState(false);
+      const [now, setNow] = React.useState(Date.now());
+      const summary = useSummary(undefined, 'sidebarPollMs');
+      const accountState = useAccount();
+
+      React.useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(timer);
+      }, []);
+
+      React.useEffect(() => {
+        let alive = true;
+        fetch('/api/precise-billing/settings', { cache: 'no-store' })
+          .then((r) => r.json())
+          .then((data) => {
+            if (!alive) return;
+            setState({ status: 'ok', fontFamilies: data.fontFamilies || {} });
+            setDraft({ ...DEFAULT_SETTINGS, ...(data.settings || {}) });
+          })
+          .catch(() => alive && setState({ status: 'error' }));
+        return () => { alive = false; };
+      }, []);
+
+      if (state.status === 'loading') return h('div', { style: { padding: 20, fontSize: 12 } }, '加载中…');
+      if (state.status === 'error') return h('div', { style: { padding: 20, fontSize: 12, color: 'var(--dsw-alias-state-error-primary, #c00)' } }, '读取设置失败');
+
+      const families = state.fontFamilies;
+      const data = summary.data;
+      const account = accountState.account;
+      const set = (patch) => {
+        setDraft((prev) => ({ ...prev, ...patch }));
+        setDirty(true);
+      };
+
+      const setCustom = (key, value) => {
+        setDraft((prev) => ({ ...prev, custom: { ...(prev.custom || {}), [key]: value } }));
+        setDirty(true);
+      };
+
+      const save = async (next = draft) => {
+        try {
+          const res = await fetch('/api/precise-billing/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(next),
+          });
+          const out = await res.json();
+          if (!out.ok) throw new Error(out.error || 'save failed');
+          setDraft({ ...DEFAULT_SETTINGS, ...out.settings });
+          setDirty(false);
+          setSaved('已保存 ' + new Date().toLocaleTimeString());
+        } catch (error) {
+          setSaved('保存失败：' + String(error.message || error));
+        }
+      };
+
+      const reset = () => {
+        const next = { ...DEFAULT_SETTINGS };
+        setDraft(next);
+        setDirty(true);
+        save(next);
+      };
+
+      const officialToday = Number(account?.todayCost ?? 0);
+      const localToday = Number(data?.today?.cost ?? 0);
+      const logged = account?.logged === true;
+
+      return h('div', { style: { padding: '2px 2px 24px', maxWidth: 760 } },
+        h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 } },
+          h('div', null,
+            h('h2', { style: { fontSize: 17, margin: '0 0 3px', color: 'var(--dsw-alias-label-primary, #111)' } }, '精确计费'),
+            h('div', { style: { fontSize: 11, color: MUTED } }, '按 DeepSeek 官方人民币价目逐条请求计价 · 峰时为闲时的两倍 · 节假日全天闲时')),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+            h('span', { style: { fontSize: 11, color: MUTED } }, dirty ? '有未保存修改' : saved),
+            h('button', {
+              type: 'button',
+              onClick: reset,
+              style: { fontSize: 11, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.15))', background: 'transparent', color: 'var(--dsw-alias-label-primary, #111)' },
+            }, '恢复默认'),
+            h('button', {
+              type: 'button',
+              onClick: () => save(),
+              style: { fontSize: 11, padding: '6px 16px', borderRadius: 7, cursor: 'pointer', border: '1px solid var(--dsw-alias-brand-primary, #247bbf)', background: 'var(--dsw-alias-brand-primary, #247bbf)', color: '#fff', fontWeight: 600 },
+            }, '保存设置'))),
+
+        h(Section, { title: '账户', desc: '读取 DSH 已登录的 DeepSeek 账号，后台每 2 分钟刷新。' },
+          h(Field, { label: '登录状态' },
+            h('span', { style: { fontSize: 12 } },
+              logged ? '已登录' : account?.error === 'unauthorized' ? '未登录' : accountState.status === 'loading' ? '读取中…' : '读取失败')),
+          h(Field, { label: '账户余额' }, h('span', { style: { fontSize: 12 } }, logged && Number.isFinite(Number(account.balance)) ? money(Number(account.balance)) : '—')),
+          h(Field, { label: '本月消费' }, h('span', { style: { fontSize: 12 } }, logged ? money(Number(account.monthCost)) : '—')),
+          h(Field, { label: '本月用量' }, h('span', { style: { fontSize: 12 } }, logged ? fmtTokensCN(account.monthTokens) + ' tokens' : '—')),
+          h(Field, { label: '金额口径', hint: '官方含其他客户端' },
+            h(Segmented, {
+              value: draft.amountSource || 'local',
+              options: [{ value: 'local', label: '本地日志' }, { value: 'official', label: '官方账号' }],
+              onChange: (value) => set({ amountSource: value }),
+            })),
+          h(Field, { label: '对账' },
+            h('span', { style: { fontSize: 11.5, color: MUTED } },
+              logged ? '官方 ' + money(officialToday) + ' · 本地 ' + money(localToday) + ' · 差 ' + money(Math.abs(officialToday - localToday)) : '—'))),
+
+        h(Section, { title: '费用条', desc: '输入框下方或会话标题栏的常驻费用条，点击可展开本会话明细。' },
+          h(Field, { label: '位置' },
+            h(Segmented, {
+              value: draft.position,
+              options: [{ value: 'hidden', label: '隐藏' }, { value: 'composer', label: '输入框下方' }, { value: 'header', label: '标题栏' }],
+              onChange: (value) => set({ position: value }),
+            })),
+          h(Field, { label: '字体' },
+            h('select', { style: inputStyle, value: draft.fontFamily, onChange: (e) => set({ fontFamily: e.target.value }) },
+              Object.keys(FONT_LABELS).map((key) => h('option', { key, value: key }, FONT_LABELS[key])))),
+          h(Field, { label: '字号' },
+            h('input', { type: 'number', min: 9, max: 18, style: { ...inputStyle, width: 80 }, value: draft.fontSize, onChange: (e) => set({ fontSize: Number(e.target.value) || 11 }) })),
+          h(Field, { label: '颜色' },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+              h('input', { type: 'color', value: /^#[0-9a-fA-F]{6}$/.test(draft.color) ? draft.color : '#666666', onChange: (e) => set({ color: e.target.value }), style: { width: 34, height: 24, padding: 0, border: 'none', background: 'none', cursor: 'pointer' } }),
+              h('button', { type: 'button', style: { ...inputStyle, width: 'auto', padding: '4px 10px', cursor: 'pointer' }, onClick: () => set({ color: '' }) }, '跟随主题'))),
+          h(Field, { label: '显示内容' },
+            h('div', { style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center' } },
+              h(Check, { label: '峰时/闲时', checked: draft.chipPhase !== false, onChange: (value) => set({ chipPhase: value }) }),
+              h(Check, { label: '本次', checked: draft.chipSession !== false, onChange: (value) => set({ chipSession: value }) }),
+              h(Check, { label: '今日', checked: draft.chipToday !== false, onChange: (value) => set({ chipToday: value }) }),
+              h(Check, { label: '累计', checked: draft.chipTotal !== false, onChange: (value) => set({ chipTotal: value }) }),
+              h(Check, { label: '余额', checked: draft.chipBalance !== false, onChange: (value) => set({ chipBalance: value }) }))),
+          h(Field, { label: '刷新间隔' },
+            h('select', { style: { ...inputStyle, width: 130 }, value: draft.chipPollMs || 10000, onChange: (e) => set({ chipPollMs: Number(e.target.value) }) },
+              h('option', { value: 1000 }, '1 秒'),
+              h('option', { value: 5000 }, '5 秒'),
+              h('option', { value: 10000 }, '10 秒'),
+              h('option', { value: 30000 }, '30 秒'),
+              h('option', { value: 60000 }, '1 分钟'),
+              h('option', { value: 300000 }, '5 分钟'),
+              h('option', { value: 600000 }, '10 分钟'))),
+          h(Field, { label: '预览' },
+            h('div', { style: { width: '100%', display: 'flex', justifyContent: 'flex-end', padding: '6px 0' } },
+              buildChip(draft, families, data, summary.status, account, {})))),
+
+        h(Section, { title: '侧栏卡片', desc: '侧栏底部的常驻卡片，显示内容由「风格」决定。' },
+          h(Field, { label: '启用' },
+            h(Segmented, {
+              value: draft.sidebar !== false ? 'on' : 'off',
+              options: [{ value: 'on', label: '显示' }, { value: 'off', label: '隐藏' }],
+              onChange: (value) => set({ sidebar: value === 'on' }),
+            })),
+          h(Field, { label: '风格' },
+            h('select', { style: { ...inputStyle, width: 150 }, value: draft.sidebarStyle, onChange: (e) => set({ sidebarStyle: e.target.value }) },
+              h('option', { value: 'standard' }, '标准'),
+              h('option', { value: 'simple' }, '简约'),
+              h('option', { value: 'compact' }, '紧凑'),
+              h('option', { value: 'custom' }, '自定义'))),
+          h(Field, { label: '刷新间隔' },
+            h('select', { style: { ...inputStyle, width: 130 }, value: draft.sidebarPollMs || 30000, onChange: (e) => set({ sidebarPollMs: Number(e.target.value) }) },
+              h('option', { value: 1000 }, '1 秒'),
+              h('option', { value: 5000 }, '5 秒'),
+              h('option', { value: 10000 }, '10 秒'),
+              h('option', { value: 30000 }, '30 秒'),
+              h('option', { value: 60000 }, '1 分钟'),
+              h('option', { value: 300000 }, '5 分钟'),
+              h('option', { value: 600000 }, '10 分钟'))),
+          draft.sidebarStyle === 'custom'
+            ? h(Field, { label: '自定义内容' },
+                h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, width: '100%' } },
+                  h('div', { style: { fontSize: 11, color: MUTED } }, '顶部金额'),
+                  h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, width: '100%' } },
+                    h(Check, { label: '累计消费', flush: true, checked: draft.custom.a1 !== false, onChange: (v) => setCustom('a1', v) }),
+                    h(Check, { label: '账户余额', flush: true, checked: draft.custom.a2 !== false, onChange: (v) => setCustom('a2', v) }),
+                    h(Check, { label: '今日消费', flush: true, checked: draft.custom.a3 !== false, onChange: (v) => setCustom('a3', v) }),
+                    h(Check, { label: '本月消费', flush: true, checked: draft.custom.a4 !== false, onChange: (v) => setCustom('a4', v) })),
+                  h('div', { style: { fontSize: 11, color: MUTED, marginTop: 4 } }, '进度条'),
+                  h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, width: '100%' } },
+                    h(Check, { label: '进度条', flush: true, checked: draft.custom.b1 !== false, onChange: (v) => setCustom('b1', v) }),
+                    h(Check, { label: '刻度线', flush: true, checked: draft.custom.b2 !== false, onChange: (v) => setCustom('b2', v) }),
+                    h(Check, { label: '游标', flush: true, checked: draft.custom.b3 !== false, onChange: (v) => setCustom('b3', v) }),
+                    h(Check, { label: '悬浮提示', flush: true, checked: draft.custom.b4 !== false, onChange: (v) => setCustom('b4', v) })),
+                  h('div', { style: { fontSize: 11, color: MUTED, marginTop: 4 } }, '百分比'),
+                  h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, width: '100%' } },
+                    h(Check, { label: '已过', flush: true, checked: draft.custom.c1 !== false, onChange: (v) => setCustom('c1', v) }),
+                    h(Check, { label: '剩余', flush: true, checked: draft.custom.c2 !== false, onChange: (v) => setCustom('c2', v) })),
+                  h('div', { style: { fontSize: 11, color: MUTED, marginTop: 4 } }, '时段明细'),
+                  h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, width: '100%' } },
+                    h(Check, { label: '目前时段', flush: true, checked: draft.custom.d1 !== false, onChange: (v) => setCustom('d1', v) }),
+                    h(Check, { label: '目前时段范围', flush: true, checked: draft.custom.d2 !== false, onChange: (v) => setCustom('d2', v) }),
+                    h(Check, { label: '已过时长', flush: true, checked: draft.custom.d3 !== false, onChange: (v) => setCustom('d3', v) }),
+                    h(Check, { label: '下一时段', flush: true, checked: draft.custom.d4 !== false, onChange: (v) => setCustom('d4', v) }),
+                    h(Check, { label: '下一时段范围', flush: true, checked: draft.custom.d5 !== false, onChange: (v) => setCustom('d5', v) }),
+                    h(Check, { label: '剩余时长', flush: true, checked: draft.custom.d6 !== false, onChange: (v) => setCustom('d6', v) }))))
+            : null,
+          h(Field, { label: '预览' },
+            h('div', { style: { width: '100%', display: 'flex', justifyContent: 'flex-end' } },
+              h('div', { style: { width: 300, padding: 8, borderRadius: 8, border: '1px dashed var(--dsw-alias-border-l1, rgba(0,0,0,.12))' } },
+                buildSidebar(draft, families, data, account, now, true))))),
+
+      );
+    }
+
+    function SettingsPageSafe() {
+      return h(PageBoundary, null, h(SettingsPage));
+    }
+
+    return {
+      inject: ['slots'],
+      apply(ctx) {
+        slotsService = ctx.slots;
+        ensureStyles();
+        ctx.slots.inject('conversation.composer.dock', () =>
+          ctx.slots.register({ name: 'conversation.composer.dock', id: 'precise-billing', order: 30 }, withSlot('composer')),
+        );
+        ctx.slots.inject('conversation.session.header.actions', () =>
+          ctx.slots.register({ name: 'conversation.session.header.actions', id: 'precise-billing-header', order: 45 }, withSlot('header')),
+        );
+        ctx.slots.inject('settings.section', () =>
+          ctx.slots.register({ name: 'settings.section', id: 'precise-billing', order: 70, label: '精确计费' }, SettingsPageSafe),
+        );
+        ctx.slots.inject('sidebar.footer.action', () =>
+          ctx.slots.register({ name: 'sidebar.footer.action', id: 'precise-billing-sidebar', order: 5 }, SidebarCard),
+        );
+      },
+    };
+  },
+});
