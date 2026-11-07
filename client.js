@@ -289,6 +289,11 @@ window.__ModuleLoader__.load({
     h('rect', { x: 13.5, y: 13.5, width: 7.5, height: 7.5, rx: 1.8, fill: 'currentColor' }));
 }
 
+function warningIcon(size = 16, color = '#d97706') {
+  return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
+    h('path', { fill: color, d: 'M12 2.2 23 21H1L12 2.2zm-1.1 6.2v6.2h2.2V8.4h-2.2zm0 7.6v2.2h2.2v-2.2h-2.2z' }));
+}
+
 function restartIcon(size = 12) {
   return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
     h('path', {
@@ -672,19 +677,36 @@ function closeIcon(size = 14) {
       if (copied) showRestartToast('日志路径已复制到剪贴板');
     }
     function askRestart() {
-      setRestartState({ open: true, phase: 'confirm', logPath: '', error: '' });
+      setRestartState({ open: true, phase: 'checking', logPath: '', error: '', running: [] });
+      void beginRestartCheck();
     }
     function closeRestart() {
       setRestartState({ open: false });
     }
-    async function confirmRestart(force) {
-      setRestartState({ phase: force === true ? 'running' : 'checking', error: '', running: [] });
+    async function beginRestartCheck() {
       try {
         const res = await fetch('/api/precise-billing/restart', {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ force: force === true }),
+          body: JSON.stringify({ check: true }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || payload.ok !== true) throw new Error(payload.error || ('HTTP ' + res.status));
+        const running = Array.isArray(payload.running) ? payload.running : [];
+        setRestartState({ running, phase: running.length > 0 ? 'busy' : 'confirm' });
+      } catch (error) {
+        setRestartState({ phase: 'error', error: String((error && error.message) || error) });
+      }
+    }
+    async function doRestart() {
+      setRestartState({ phase: 'running', error: '' });
+      try {
+        const res = await fetch('/api/precise-billing/restart', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ force: true }),
         });
         const payload = await res.json().catch(() => ({}));
         if (res.status === 409 && payload && Array.isArray(payload.sessions)) {
@@ -692,7 +714,7 @@ function closeIcon(size = 14) {
           return;
         }
         if (!res.ok || payload.ok !== true) throw new Error(payload.error || ('HTTP ' + res.status));
-        setRestartState({ phase: 'running', logPath: payload.logPath || '' });
+        setRestartState({ logPath: payload.logPath || '' });
         setTimeout(() => {
           if (restartState.open && restartState.phase === 'running') setRestartState({ phase: 'timeout' });
         }, 20000);
@@ -2200,8 +2222,15 @@ function closeIcon(size = 14) {
         '.pb-rst-fill{height:100%;width:8%;border-radius:999px;background:#2f6fed;animation:pb-rst-progress 9s cubic-bezier(.15,.7,.25,1) forwards}',
         '.pb-rst-toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:2147483001;background:rgba(20,22,28,.92);color:#fff;font-size:12px;line-height:1;padding:9px 16px;border-radius:999px;box-shadow:0 10px 26px rgba(0,0,0,.24);animation:pb-rst-toast-in .18s ease}',
         '@keyframes pb-rst-toast-in{from{opacity:0;transform:translateX(-50%) translateY(4px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}',
-        '.pb-rst-list{margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.035)}',
-        '.pb-rst-item{font-size:12px;line-height:1.7;color:var(--dsw-alias-label-primary,#333);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+        '.pb-rst-accent{height:4px;margin:-20px -20px 16px;border-radius:14px 14px 0 0}',
+        '.pb-rst-btn.warn{background:#d97706;border-color:#d97706;color:#fff}',
+        '.pb-rst-btn.warn:hover{background:#b45309}',
+        '.pb-rst-btn.danger{background:#c93b3b;border-color:#c93b3b;color:#fff}',
+        '.pb-rst-btn.danger:hover{background:#a93232}',
+        '.pb-rst-warnline{margin-top:10px;padding:7px 10px;border-radius:8px;font-size:12px;line-height:1.6;color:#9f2f2f;background:rgba(201,59,59,.08);border:1px solid rgba(201,59,59,.20)}',
+        '.pb-rst-list-title{font-size:11px;font-weight:600;color:#9a5b00;margin-bottom:4px}',
+        '.pb-rst-list{margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(217,119,6,.09);border:1px solid rgba(217,119,6,.20)}',
+        '.pb-rst-item{font-size:12px;line-height:1.7;color:#7c4a03;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
         '.pb-rst-log{margin-top:10px;font-size:10.5px;line-height:1.6;color:var(--dsw-alias-label-secondary,#777);word-break:break-all;font-family:ui-monospace,Consolas,monospace}',
         '@keyframes pb-rst-fade{from{opacity:0}to{opacity:1}}',
         '@keyframes pb-rst-in{from{opacity:0;transform:translateY(4px) scale(.985)}to{opacity:1;transform:none}}',
@@ -2497,44 +2526,52 @@ function closeIcon(size = 14) {
       }, [state.open]);
       if (!state.open || typeof document === 'undefined' || !ReactDOM || typeof ReactDOM.createPortal !== 'function') return null;
       const phase = state.phase;
-      const title = phase === 'running' ? '正在热重启' : phase === 'timeout' ? '还没自动重开' : phase === 'error' ? '热重启没有发起' : phase === 'busy' ? '有对话正在运行' : phase === 'checking' ? '准备重启' : '热重启 DSH';
       const runningCount = Array.isArray(state.running) ? state.running.length : 0;
-      const lead = phase === 'checking'
-        ? '正在确认是否还有对话在运行…'
-        : phase === 'busy'
-          ? '检测到 ' + runningCount + ' 个对话仍在运行。现在重启会中断它们，是否仍要重启？'
-          : phase === 'running'
-        ? '窗口即将关闭，并自动重新打开。请稍候，不要重复操作。'
-        : phase === 'timeout'
-          ? '重启助手可能被安全软件拦截，或当前 DSH 是手动启动的。请手动关闭窗口后重新打开。'
-          : phase === 'error'
-            ? state.error
-            : '窗口会关闭并自动重新打开，当前会话与对话记录都会保留。';
+      const danger = phase === 'confirm' || phase === 'timeout' || phase === 'error';
+      const tone = phase === 'busy' ? '#d97706' : danger ? '#c93b3b' : '#2f6fed';
+      const warn = phase === 'busy' || danger;
+      const title = phase === 'checking' ? '正在检查对话状态'
+        : phase === 'busy' ? '有对话正在运行'
+        : phase === 'confirm' ? '确认重启 DSH'
+        : phase === 'running' ? '正在热重启'
+        : phase === 'timeout' ? '还没自动重开'
+        : '热重启没有发起';
+      const lead = phase === 'checking' ? '正在确认是否还有对话在运行…'
+        : phase === 'busy' ? '检测到 ' + runningCount + ' 个对话仍在运行。现在重启会立即中断它们，正在生成的内容可能丢失。'
+        : phase === 'confirm' ? '重启会中断当前所有正在进行的操作，窗口关闭并自动重新打开。对话记录会保留。'
+        : phase === 'running' ? '窗口即将关闭，并自动重新打开。请稍候，不要重复操作。'
+        : phase === 'timeout' ? '重启助手可能被安全软件拦截，或当前 DSH 是手动启动的。请手动关闭窗口后重新打开。'
+        : state.error;
       const actions = [];
       if (phase === 'checking') {
         actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
       } else if (phase === 'busy') {
         actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
-        actions.push(h('button', { key: 'force', type: 'button', className: 'pb-rst-btn primary', onClick: () => confirmRestart(true) }, '仍然重启'));
+        actions.push(h('button', { key: 'next', type: 'button', className: 'pb-rst-btn warn', onClick: () => setRestartState({ phase: 'confirm' }) }, '继续重启'));
       } else if (phase === 'confirm') {
         actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
-        actions.push(h('button', { key: 'go', type: 'button', className: 'pb-rst-btn primary', onClick: () => confirmRestart(false) }, '立即重启'));
+        actions.push(h('button', { key: 'go', type: 'button', className: 'pb-rst-btn danger', onClick: doRestart }, '立即重启'));
       } else {
-        actions.push(h('button', { key: 'close', type: 'button', className: 'pb-rst-btn', onClick: closeRestartWithLog }, phase === 'running' ? '收起' : '知道了'));
+        actions.push(h('button', { key: 'close', type: 'button', className: 'pb-rst-btn', onClick: phase === 'running' || phase === 'timeout' ? closeRestartWithLog : closeRestart }, phase === 'running' ? '收起并复制日志' : phase === 'timeout' ? '知道了' : '好的'));
       }
       return ReactDOM.createPortal(
         h('div', { className: 'pb-rst-backdrop' },
           h('div', { className: 'pb-rst-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+            h('div', { className: 'pb-rst-accent', style: { background: tone } }),
             h('div', { className: 'pb-rst-title' },
-              h('span', { style: { color: '#2f6fed', display: 'inline-flex' } }, restartIcon(15)),
+              h('span', { style: { color: tone, display: 'inline-flex' } }, warn ? warningIcon(17, tone) : restartIcon(15)),
               title),
-            h('div', { className: 'pb-rst-body' }, lead),
+            h('div', { className: 'pb-rst-body', style: warn ? { color: '#6b4a12' } : undefined }, lead),
             phase === 'busy' && runningCount > 0
-            ? h('div', { className: 'pb-rst-list' },
-                state.running.slice(0, 5).map((item, index) => h('div', { key: 'run-' + index, className: 'pb-rst-item' }, '· ' + (item.title || item.id || '未命名对话'))),
-                runningCount > 5 ? h('div', { className: 'pb-rst-item' }, '· 还有 ' + (runningCount - 5) + ' 个…') : null)
-            : null,
-          phase === 'running' ? h('div', { className: 'pb-rst-track' }, h('div', { className: 'pb-rst-fill' })) : null,
+              ? h('div', { className: 'pb-rst-list' },
+                  h('div', { className: 'pb-rst-list-title' }, '运行中的对话'),
+                  state.running.slice(0, 5).map((item, index) => h('div', { key: 'run-' + index, className: 'pb-rst-item' }, '· ' + (item.title || item.id || '未命名对话'))),
+                  runningCount > 5 ? h('div', { className: 'pb-rst-item' }, '· 还有 ' + (runningCount - 5) + ' 个…') : null)
+              : null,
+            phase === 'confirm'
+              ? h('div', { className: 'pb-rst-warnline' }, runningCount > 0 ? '注意：仍有 ' + runningCount + ' 个对话在运行，重启会中断它们。' : '注意：重启会中断所有正在进行的任务。')
+              : null,
+            phase === 'running' ? h('div', { className: 'pb-rst-track' }, h('div', { className: 'pb-rst-fill' })) : null,
             (phase === 'running' || phase === 'timeout') && state.logPath ? h('div', { className: 'pb-rst-log' }, '日志：' + state.logPath) : null,
             h('div', { className: 'pb-rst-actions' }, actions))),
         document.body,
