@@ -1571,9 +1571,6 @@ window.__ModuleLoader__.load({
       if (dim === 'day') {
         from = isoDate(new Date(anchor.year, anchor.month - 1, 1));
         to = isoDate(new Date(anchor.year, anchor.month, 0));
-      } else if (dim === 'month') {
-        from = anchor.year + '-01-01';
-        to = anchor.year + '-12-31';
       } else if (dim === 'year') {
         from = anchor.year - 1 + '-01-01';
         to = anchor.year + '-12-31';
@@ -1582,22 +1579,23 @@ window.__ModuleLoader__.load({
         to = anchor.year + '-12-31';
       }
 
-      const [state, reload] = useUsageWindow(from, to, mode, model, true);
+      const [state] = useUsageWindow(from, to, mode, model, true);
       const data = state.status === 'ok' ? state.data : undefined;
       const days = (data && data.days) || [];
       const localMap = {};
       for (const day of (data && data.localDays) || []) localMap[day.date] = day;
       if (mode === 'local') for (const day of days) localMap[day.date] = day;
       const officialNeedsLocal = mode === 'official' && data && data.peakSplit === false;
+      const calendar = buildCalendar(days, localMap, dim, anchor, todayKey, officialNeedsLocal);
 
       React.useEffect(() => {
         if (dim !== 'week') return;
         const node = weekRef.current;
         if (node && typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }, [dim, anchor.year, state.status]);
-      const calendar = buildCalendar(days, localMap, dim, anchor, todayKey, officialNeedsLocal);
+
       const allCells = (calendar.matrix ? calendar.rows.flatMap((row) => row.cells) : calendar.cells).filter(Boolean);
-      const maxTokens = Math.max(...allCells.map((cell) => cell.tokens), 1);
+      const maxTokens = Math.max.apply(null, allCells.map((cell) => cell.tokens).concat([1]));
       const calTotals = allCells.reduce((acc, cell) => ({
         tokens: acc.tokens + cell.tokens,
         cost: acc.cost + cell.cost,
@@ -1610,8 +1608,6 @@ window.__ModuleLoader__.load({
           const month = anchor.month + delta;
           const year = anchor.year + Math.floor((month - 1) / 12);
           setAnchor({ year, month: ((month - 1 + 12) % 12) + 1 });
-        } else if (dim === 'month' || dim === 'year') {
-          setAnchor({ year: anchor.year + delta, month: anchor.month });
         } else {
           setAnchor({ year: anchor.year + delta, month: anchor.month });
         }
@@ -1623,137 +1619,175 @@ window.__ModuleLoader__.load({
         const q = value / maxTokens;
         return q > 0.72 ? 4 : q > 0.45 ? 3 : q > 0.18 ? 2 : 1;
       };
+      const money2 = (value) => '¥' + Number(value || 0).toFixed(2);
+      const mutedText = { color: MUTED };
+      const splitChip = (label, value, color, size) => h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: size, color: MUTED, whiteSpace: 'nowrap' } },
+        h('i', { style: { width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flex: '0 0 auto' } }),
+        label + ' ' + money2(value));
 
-      const cellStyle = (cell) => {
-        const level = levelOf(cell.tokens);
+      const cellCard = (cell, variant) => {
         const isToday = cell.isToday === true || cell.key === todayKey;
-        const big = dim === 'month';
-        return {
-          minHeight: big ? 86 : dim === 'year' ? 62 : 58,
-          padding: big ? '8px 9px' : '5px 6px',
-          borderRadius: 6,
-          border: isToday ? '2px solid #2f6fed' : '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
-          boxShadow: isToday ? '0 0 0 2px rgba(47,111,237,.18)' : undefined,
-          background: 'rgba(47,111,237,' + [0, 0.05, 0.1, 0.17, 0.25][level] + ')',
-          cursor: 'pointer',
-          transition: 'transform .08s ease, box-shadow .08s ease',
-          boxShadow: hoverKey === cell.key ? '0 0 0 1px rgba(47,111,237,.55) inset' : 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1,
-          minWidth: 0,
-          boxSizing: 'border-box',
-        };
+        const empty = !cell.tokens && !cell.cost && !cell.requests;
+        const big = variant === 'month';
+        const mini = variant === 'year';
+        const level = levelOf(cell.tokens);
+        const heat = empty ? 'transparent' : 'rgba(47,111,237,' + [0, 0.035, 0.06, 0.095, 0.14][level] + ')';
+        const title = (cell.label || cell.sub ? (cell.label + ' ' + (cell.sub || '')).trim() + '\n' : '') +
+          'Tokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次\n' +
+          '总额 ' + money2(cell.cost) + '（峰 ' + money2(cell.peakCost) + ' / 闲 ' + money2(cell.offPeakCost) + '）';
+        return h('div', {
+          key: cell.key,
+          ref: isToday ? weekRef : undefined,
+          title,
+          onMouseEnter: () => setHoverKey(cell.key),
+          onMouseLeave: () => setHoverKey(null),
+          onClick: () => setDetail(cell),
+          style: {
+            minWidth: 0,
+            minHeight: big ? 104 : mini ? 74 : 62,
+            padding: big ? '11px 13px' : mini ? '7px 8px' : '7px 9px',
+            borderRadius: 10,
+            border: isToday ? '1.5px solid #2f6fed' : '1px solid rgba(0,0,0,.06)',
+            background: heat,
+            boxShadow: hoverKey === cell.key ? '0 6px 16px rgba(0,0,0,.10)' : 'none',
+            transform: hoverKey === cell.key ? 'translateY(-1px)' : 'none',
+            transition: 'box-shadow .14s ease, transform .14s ease, border-color .14s ease',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: big ? 5 : 3,
+          },
+        },
+          (cell.label || cell.sub)
+            ? h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, minWidth: 0 } },
+                h('span', { style: { fontSize: big ? 13.5 : mini ? 9.5 : 10.5, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)' } }, cell.label),
+                h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, cell.sub))
+            : null,
+          h('div', { style: { fontSize: big ? 18 : mini ? 11 : 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.15 } },
+            empty ? '—' : fmtNumberCn(cell.tokens)),
+          h('div', { style: { fontSize: big ? 12.5 : mini ? 9.5 : 10.5, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)' } },
+            empty ? '' : money2(cell.cost)),
+          empty ? null : h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 'auto' } },
+            splitChip('峰', cell.peakCost, PEAK_COLOR, big ? 10 : mini ? 8.5 : 9),
+            splitChip('闲', cell.offPeakCost, OFF_COLOR, big ? 10 : mini ? 8.5 : 9)));
       };
 
-      const cellNode = (cell) => h('div', {
-        key: cell.key,
-        ref: cell.isToday ? weekRef : undefined,
-        style: { ...cellStyle(cell), width: '100%' },
-        onMouseEnter: () => setHoverKey(cell.key),
-        onMouseLeave: () => setHoverKey(null),
-        onClick: () => setDetail(cell),
-        title: cell.label + (cell.sub ? ' · ' + cell.sub : '') +
-          '\nTokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次' +
-          '\n总额 ' + fmtMoneyCn(cell.cost) +
-          '\n峰 ' + fmtMoneyCn(cell.peakCost) + ' · 闲 ' + fmtMoneyCn(cell.offPeakCost),
-      },
-        (cell.label || cell.sub) ? h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4 } },
-          h('span', { style: { fontSize: dim === 'month' ? 13 : 10.5, fontWeight: 700 } }, cell.label),
-          h('span', { style: { fontSize: 9.5, color: MUTED } }, cell.sub)) : null,
-        h('div', { style: { fontSize: 11.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }, cell.empty ? '—' : fmtNumberCn(cell.tokens)),
-        h('div', { style: { fontSize: 10.5, fontVariantNumeric: 'tabular-nums' } }, fmtMoneyCn(cell.cost)),
-        h('div', { style: { fontSize: 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
-          '峰 ' + fmtMoneyCn(cell.peakCost) + ' · 闲 ' + fmtMoneyCn(cell.offPeakCost)));
+      const emptyTile = (key, minHeight) => h('div', { key, style: { minHeight, borderRadius: 10, border: '1px dashed rgba(0,0,0,.07)' } });
 
-      const columns = dim === 'day' ? 'repeat(7, minmax(0, 1fr))' : dim === 'month' ? 'repeat(6, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))';
+      const dimPills = h('div', { style: { display: 'inline-flex', padding: 2, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.04))' } },
+        [['day', '按日'], ['week', '按周'], ['month', '按月'], ['year', '按年']].map(([value, label]) => h('button', {
+          key: value,
+          type: 'button',
+          onClick: () => { setDim(value); setDetail(null); },
+          style: {
+            padding: '4px 11px', fontSize: 11.5, border: 'none', borderRadius: 6, cursor: 'pointer',
+            background: dim === value ? 'var(--dsw-alias-bg-layer-1, #fff)' : 'transparent',
+            color: dim === value ? '#2f6fed' : 'inherit',
+            fontWeight: dim === value ? 600 : 400,
+            boxShadow: dim === value ? '0 1px 3px rgba(0,0,0,.10)' : 'none',
+          },
+        }, label)));
+
+      const navButton = (label, onClick, title) => h('button', {
+        type: 'button', onClick, title,
+        style: { width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(0,0,0,.08)', background: 'transparent', cursor: 'pointer', color: 'inherit', fontSize: 13, lineHeight: 1 },
+      }, label);
+
+      const totalStrip = h('div', {
+        style: {
+          display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+          padding: '8px 12px', borderRadius: 10, marginBottom: 10,
+          background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.03))', fontSize: 11.5, color: MUTED,
+        },
+      },
+        h('span', { style: { fontWeight: 600, color: 'var(--dsw-alias-label-primary, #111)' } }, '本期合计'),
+        h('span', null, h('b', { style: { fontSize: 13.5, color: 'var(--dsw-alias-label-primary, #111)' } }, fmtNumberCn(calTotals.tokens)), ' Tokens'),
+        h('span', null, h('b', { style: { fontSize: 13.5, color: 'var(--dsw-alias-label-primary, #111)' } }, money2(calTotals.cost))),
+        splitChip('峰', calTotals.peakCost, PEAK_COLOR, 11),
+        splitChip('闲', calTotals.offPeakCost, OFF_COLOR, 11));
+
       const weekday = ['一', '二', '三', '四', '五', '六', '日'];
+      let gridBody = null;
+      if (calendar.matrix) {
+        gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+          h('div', { style: { display: 'flex', gap: 6, padding: '0 8px 2px' } },
+            h('div', { style: { width: 64, flex: '0 0 64px' } }),
+            Array.from({ length: calendar.columns }, (_, index) => h('div', {
+              key: 'head-' + index,
+              style: { flex: '1 1 0', fontSize: 13, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', fontWeight: 700 },
+            }, (calendar.headers && calendar.headers[index]) || ('第' + (index + 1) + '周')))),
+          calendar.rows.map((row, rowIndex) => h('div', {
+            key: 'row-' + row.label,
+            style: {
+              display: 'flex', gap: 6, padding: '5px 8px', alignItems: 'stretch',
+              borderRadius: 8,
+              background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.02)' : 'transparent',
+            },
+          },
+            h('div', { style: { width: 64, flex: '0 0 64px', fontSize: 14, color: 'var(--dsw-alias-label-primary, #111)', display: 'flex', alignItems: 'center', fontWeight: 700 } }, row.label),
+            Array.from({ length: calendar.columns }, (_, index) => {
+              const cell = row.cells[index];
+              return h('div', { key: 'cell-' + row.label + '-' + index, style: { flex: '1 1 0', minWidth: 0 } },
+                cell ? cellCard(cell, dim === 'year' ? 'year' : 'week') : emptyTile('e-' + row.label + '-' + index, dim === 'year' ? 74 : 62));
+            }))));
+      } else if (dim === 'day') {
+        const cells = calendar.cells;
+        gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 } },
+          weekday.map((name) => h('div', { key: 'w-' + name, style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', paddingBottom: 3, fontWeight: 700 } }, name)),
+          cells.map((cell, index) => (cell ? cellCard(cell, 'day') : emptyTile('blank-' + index, 62))));
+      } else {
+        gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 } },
+          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'month') : emptyTile('blank-' + index, 104))));
+      }
+
+      const detailBody = detail
+        ? h('div', {
+            style: {
+              marginTop: 12, padding: '12px 14px', borderRadius: 12,
+              border: '1px solid rgba(0,0,0,.07)', background: 'var(--dsw-alias-bg-layer-1, #fff)',
+            },
+          },
+            h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 } },
+              h('div', null,
+                h('div', { style: { fontSize: 13, fontWeight: 700 } }, (detail.label || detail.key) + (detail.sub ? ' · ' + detail.sub : '')),
+                h('div', { style: { fontSize: 10.5, color: MUTED, marginTop: 1 } }, fmtNumberCn(detail.requests) + ' 次请求 · ' + fmtNumberCn(detail.tokens) + ' Tokens')),
+              h('button', { type: 'button', onClick: () => setDetail(null), style: { border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: MUTED } }, '关闭')),
+            h('div', { style: { display: 'flex', gap: 22, flexWrap: 'wrap', marginBottom: 8 } },
+              h('div', null, h('div', { style: { fontSize: 10, color: MUTED } }, '总额'), h('div', { style: { fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' } }, money2(detail.cost))),
+              h('div', null, h('div', { style: { fontSize: 10, color: MUTED } }, '峰时'), h('div', { style: { fontSize: 16, fontWeight: 700, color: PEAK_COLOR, fontVariantNumeric: 'tabular-nums' } }, money2(detail.peakCost))),
+              h('div', null, h('div', { style: { fontSize: 10, color: MUTED } }, '闲时'), h('div', { style: { fontSize: 16, fontWeight: 700, color: OFF_COLOR, fontVariantNumeric: 'tabular-nums' } }, money2(detail.offPeakCost))),
+              h('div', null, h('div', { style: { fontSize: 10, color: MUTED } }, '模型'), h('div', { style: { fontSize: 16, fontWeight: 700 } }, String(detail.models.length)))),
+            detail.models.length > 0
+              ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 5, marginTop: 4 } },
+                  detail.models.slice().sort((a, b) => b.cost - a.cost).map((item) => {
+                    const share = detail.cost > 0 ? (item.cost || 0) / detail.cost : 0;
+                    return h('div', { key: item.model, style: { display: 'flex', alignItems: 'center', gap: 10 } },
+                      h('span', { style: { width: 150, fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, item.model),
+                      h('div', { style: { flex: '1 1 0', height: 6, borderRadius: 3, background: 'rgba(0,0,0,.05)', overflow: 'hidden' } },
+                        h('div', { style: { width: share * 100 + '%', height: '100%', background: '#2f6fed' } })),
+                      h('span', { style: { width: 150, textAlign: 'right', fontSize: 11, color: MUTED, fontVariantNumeric: 'tabular-nums' } },
+                        fmtNumberCn(item.tokens) + ' · ' + money2(item.cost)));
+                  }))
+              : null)
+        : null;
 
       return h('div', null,
-        h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 } },
-          h('div', { style: { display: 'inline-flex', border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, overflow: 'hidden' } },
-            [['day', '按日'], ['week', '按周'], ['month', '按月'], ['year', '按年']].map(([value, label]) => h('button', {
-              key: value,
-              type: 'button',
-              onClick: () => { setDim(value); setDetail(null); },
-              style: { padding: '4px 10px', fontSize: 11.5, border: 'none', cursor: 'pointer', background: dim === value ? 'rgba(47,111,237,.12)' : 'transparent', color: dim === value ? '#2f6fed' : 'inherit', fontWeight: dim === value ? 600 : 400 },
-            }, label))),
-          h('button', { type: 'button', onClick: () => shift(-1), style: { padding: '4px 8px', fontSize: 12, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '‹'),
-          h('span', { style: { fontSize: 15, fontWeight: 700, minWidth: 140, textAlign: 'center', letterSpacing: 0.3 } }, calendar.title),
-          h('button', { type: 'button', onClick: () => shift(1), style: { padding: '4px 8px', fontSize: 12, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '›'),
-          h('button', { type: 'button', onClick: () => { setAnchor({ year: today.getFullYear(), month: today.getMonth() + 1 }); setDetail(null); }, style: { padding: '4px 8px', fontSize: 11.5, border: '1px solid rgba(0,0,0,.16)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '今天'),
-          state.status === 'loading' ? h('span', { style: { fontSize: 11, color: MUTED } }, '加载中…') : null,
-          officialNeedsLocal ? h('span', { style: { fontSize: 10.5, color: MUTED } }, '峰/闲取自本地日志（官方按天返回）') : null),
-        h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', fontSize: 11, color: MUTED, margin: '6px 0 8px' } },
-          h('span', null, '当前视图合计'),
-          h('span', null, 'Tokens ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtNumberCn(calTotals.tokens))),
-          h('span', null, '总额 ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtMoneyCn(calTotals.cost))),
-          h('span', null, '峰 ', h('b', { style: { color: PEAK_COLOR } }, fmtMoneyCn(calTotals.peakCost))),
-          h('span', null, '闲 ', h('b', { style: { color: OFF_COLOR } }, fmtMoneyCn(calTotals.offPeakCost)))),
-        calendar.matrix
-          ? h('div', { style: { display: 'flex', flexDirection: 'column', border: '1px solid rgba(0,0,0,.08)', borderRadius: 8, overflow: 'hidden' } },
-              h('div', { style: { display: 'flex', gap: 4, padding: '6px 8px', marginBottom: 2, borderRadius: 6, background: 'rgba(0,0,0,.06)' } },
-                h('div', { key: 'corner', style: { width: 52, flex: '0 0 52px' } }),
-                Array.from({ length: calendar.columns }, (_, index) => h('div', { key: 'head-' + index, style: { flex: '1 1 0', fontSize: 10.5, color: MUTED, textAlign: 'center' } }, (calendar.headers && calendar.headers[index]) || ('第' + (index + 1) + '周')))),
-              calendar.rows.map((row, rowIndex) => h('div', {
-                key: 'row-' + row.label,
-                style: {
-                  display: 'flex',
-                  gap: 4,
-                  padding: '5px 8px',
-                  alignItems: 'stretch',
-                  background: rowIndex % 2 === 0 ? 'rgba(0,0,0,.035)' : 'transparent',
-                },
-              },
-                h('div', { key: 'label-' + row.label, style: { width: 52, flex: '0 0 52px', fontSize: 11, color: MUTED, display: 'flex', alignItems: 'center' } }, row.label),
-                Array.from({ length: calendar.columns }, (_, index) => {
-                  const cell = row.cells[index];
-                  return cell
-                    ? h('div', { key: cell.key, style: { flex: '1 1 0', minWidth: 0 } }, cellNode(cell))
-                    : h('div', { key: 'empty-' + row.label + '-' + index, style: { flex: '1 1 0' } });
-                }))))
-          : dim === 'month'
-            ? h('div', { style: { display: 'flex', flexDirection: 'column' } },
-                (() => {
-                  const rows = [];
-                  for (let index = 0; index < calendar.cells.length; index += 6) rows.push(calendar.cells.slice(index, index + 6));
-                  return rows.map((row, rowIndex) => h('div', {
-                    key: 'mrow-' + rowIndex,
-                    style: { display: 'flex', gap: 4, padding: '4px 6px', background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.02)' : 'transparent' },
-                  }, row.map((cell, cellIndex) => h('div', { key: cellIndex, style: { flex: '1 1 0', minWidth: 0 } }, cell ? cellNode(cell) : null))));
-                })())
-            : dim === 'day'
-            ? h('div', { style: { display: 'flex', flexDirection: 'column' } },
-                h('div', { style: { display: 'flex', gap: 4, padding: '0 6px 4px' } },
-                  weekday.map((name) => h('div', { key: name, style: { flex: '1 1 0', fontSize: 10.5, color: MUTED, textAlign: 'center' } }, name))),
-                (() => {
-                  const rows = [];
-                  for (let index = 0; index < calendar.cells.length; index += 7) rows.push(calendar.cells.slice(index, index + 7));
-                  return rows.map((row, rowIndex) => h('div', {
-                    key: 'week-' + rowIndex,
-                    style: { display: 'flex', gap: 4, padding: '4px 6px', background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.02)' : 'transparent' },
-                  }, row.map((cell, cellIndex) => h('div', { key: cellIndex, style: { flex: '1 1 0', minWidth: 0 } }, cell ? cellNode(cell) : null))));
-                })())
-            : h('div', { style: { display: 'grid', gridTemplateColumns: columns, gap: 4 } },
-                calendar.cells.map((cell, index) => (cell ? cellNode(cell) : h('div', { key: 'blank-' + index }))),
-              ),
-        detail
-          ? h('div', { style: { marginTop: 10, padding: '10px 12px', border: '1px solid rgba(0,0,0,.1)', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.03))' } },
-              h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 } },
-                h('div', { style: { fontSize: 12.5, fontWeight: 700 } }, detail.label + (detail.sub ? ' · ' + detail.sub : '')),
-                h('button', { type: 'button', onClick: () => setDetail(null), style: { border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: MUTED } }, '关闭')),
-              h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, fontSize: 11.5 } },
-                h('div', null, 'Tokens ', h('b', null, fmtNumberCn(detail.tokens))),
-                h('div', null, '请求 ', h('b', null, fmtNumberCn(detail.requests)), ' 次'),
-                h('div', null, '总额 ', h('b', null, fmtMoneyCn(detail.cost))),
-                h('div', null, '峰 ', h('b', { style: { color: PEAK_COLOR } }, fmtMoneyCn(detail.peakCost)), ' · 闲 ', h('b', { style: { color: OFF_COLOR } }, fmtMoneyCn(detail.offPeakCost)))),
-              detail.models.length > 0
-                ? h('div', { style: { marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 } },
-                    detail.models.slice().sort((a, b) => b.cost - a.cost).map((m) => h('div', { key: m.model, style: { display: 'flex', justifyContent: 'space-between', fontSize: 11.5 } },
-                      h('span', null, m.model),
-                      h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, fmtNumberCn(m.tokens) + ' · ' + fmtMoneyCn(m.cost)))))
-                : null)
-          : null);
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 } },
+          dimPills,
+          h('div', { style: { flex: '1 1 160px', textAlign: 'center', minWidth: 140 } },
+            h('span', { style: { fontSize: 16, fontWeight: 700, letterSpacing: 0.2 } }, calendar.title)),
+          navButton('‹', () => shift(-1), '上一期'),
+          navButton('›', () => shift(1), '下一期'),
+          h('button', {
+            type: 'button',
+            onClick: () => { setAnchor({ year: today.getFullYear(), month: today.getMonth() + 1 }); setDetail(null); },
+            style: { padding: '5px 12px', fontSize: 11.5, borderRadius: 8, border: '1px solid rgba(0,0,0,.10)', background: 'transparent', cursor: 'pointer', color: 'inherit' },
+          }, '今天'),
+          officialNeedsLocal ? h('span', { style: { fontSize: 10, color: MUTED } }, '峰/闲取自本地日志') : null,
+          state.status === 'loading' ? h('span', { style: { fontSize: 10.5, color: MUTED } }, '加载中…') : null),
+        totalStrip,
+        gridBody,
+        detailBody);
     }
 
     function UsageHost(props) {
