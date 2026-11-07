@@ -1423,7 +1423,7 @@ window.__ModuleLoader__.load({
     }
 
     function emptyCell(key, label, sub) {
-      return { key, label, sub, tokens: 0, cost: 0, peakCost: 0, offPeakCost: 0, requests: 0, models: [], dates: [] };
+      return { key, label, sub, tokens: 0, tokens4: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 }, cost: 0, peakCost: 0, offPeakCost: 0, requests: 0, models: [], dates: [] };
     }
 
     function addCellUsage(cell, day, useLocalSplit) {
@@ -1431,6 +1431,11 @@ window.__ModuleLoader__.load({
       const off = useLocalSplit ? day.localOffPeakCost ?? 0 : day.offPeakCost ?? 0;
       const total = Number.isFinite(day.cost) && day.cost > 0 ? day.cost : peak + off;
       cell.tokens += usageTotalTokens(day.tokens || {});
+      const t4 = day.tokens || {};
+      cell.tokens4.input += t4.input || 0;
+      cell.tokens4.cacheRead += t4.cacheRead || 0;
+      cell.tokens4.cacheWrite += t4.cacheWrite || 0;
+      cell.tokens4.output += t4.output || 0;
       cell.cost += total;
       cell.peakCost += peak;
       cell.offPeakCost += off;
@@ -1441,8 +1446,10 @@ window.__ModuleLoader__.load({
           hit.cost += model.cost || 0;
           hit.tokens += usageTotalTokens(model.tokens || {});
         } else {
-          cell.models.push({ model: model.model, cost: model.cost || 0, tokens: usageTotalTokens(model.tokens || {}) });
+          cell.models.push({ model: model.model, cost: model.cost || 0, requests: 0, tokens: usageTotalTokens(model.tokens || {}) });
         }
+        const entry = hit || cell.models[cell.models.length - 1];
+        if (entry) entry.requests += model.requests || 0;
       }
       cell.dates.push(day.date);
     }
@@ -1776,7 +1783,7 @@ window.__ModuleLoader__.load({
         const cell = detail.cell;
         const popWidth = 320;
         const left = Math.min(Math.max(8, detail.x + 14), Math.max(8, (window.innerWidth || 1200) - popWidth - 12));
-        const top = Math.min(Math.max(8, detail.y + 14), Math.max(8, (window.innerHeight || 800) - 260));
+        const top = Math.min(Math.max(8, detail.y + 14), Math.max(8, (window.innerHeight || 800) - 480));
         const metric = (label, value, color) => h('div', null,
           h('div', { style: { fontSize: 10, color: MUTED } }, label),
           h('div', { style: { fontSize: 15, fontWeight: 700, color: color || 'var(--dsw-alias-label-primary, #111)', fontVariantNumeric: 'tabular-nums' } }, value));
@@ -1789,6 +1796,21 @@ window.__ModuleLoader__.load({
             h('span', { style: { width: 110, textAlign: 'right', fontSize: 10.5, color: MUTED, fontVariantNumeric: 'tabular-nums' } },
               fmtNumberCn(item.tokens) + ' · ' + money2(item.cost)));
         });
+        const t4 = cell.tokens4 || { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 };
+        const full = (value) => Number(value || 0).toLocaleString('en-US');
+        const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(cell.key || ''));
+        const title = dateMatch ? Number(dateMatch[2]) + '月' + Number(dateMatch[3]) + '日' : (cell.label || cell.key);
+        const row = (label, value, color) => h('div', {
+          style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px solid rgba(0,0,0,.05)' },
+        },
+          h('span', { style: { fontSize: 11.5, color: MUTED } }, label),
+          h('span', { style: { fontSize: 12, fontWeight: 600, color: color || 'var(--dsw-alias-label-primary, #111)', fontVariantNumeric: 'tabular-nums' } }, value));
+        const modelLine = (item) => h('div', {
+          key: item.model,
+          style: { display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10.5, color: MUTED, paddingTop: 5 },
+        },
+          h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.model),
+          h('span', { style: { whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' } }, money2(item.cost) + ' · ' + fmtNumberCn(item.requests) + ' 次'));
         const node = h('div', {
           className: 'pb-cal-pop',
           onMouseLeave: () => setDetail(null),
@@ -1797,21 +1819,28 @@ window.__ModuleLoader__.load({
             background: 'var(--dsw-alias-bg-layer-1, #fff)',
             color: 'var(--dsw-alias-label-primary, #111)',
             border: '1px solid rgba(0,0,0,.12)', borderRadius: 12,
-            boxShadow: '0 18px 44px rgba(0,0,0,.24)', padding: '12px 14px',
+            boxShadow: '0 18px 44px rgba(0,0,0,.24)', padding: '12px 16px 10px',
             fontSize: 12,
           },
         },
-          h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 } },
+          h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, paddingBottom: 8 } },
             h('div', null,
-              h('div', { style: { fontSize: 13, fontWeight: 700 } }, (cell.label || cell.key) + (cell.sub ? ' · ' + cell.sub : '')),
-              h('div', { style: { fontSize: 10.5, color: MUTED, marginTop: 1 } }, fmtNumberCn(cell.requests) + ' 次请求 · ' + fmtNumberCn(cell.tokens) + ' Tokens')),
-            h('button', { type: 'button', onClick: () => setDetail(null), style: { border: 'none', background: 'transparent', cursor: 'pointer', color: MUTED, fontSize: 14, lineHeight: 1 } }, '×')),
-          h('div', { style: { display: 'flex', gap: 20, flexWrap: 'wrap', margin: '10px 0 8px' } },
-            metric('总额', money2(cell.cost)),
-            metric('峰时', money2(cell.peakCost), PEAK_COLOR),
-            metric('闲时', money2(cell.offPeakCost), OFF_COLOR),
-            metric('模型', String((cell.models || []).length))),
-          models.length > 0 ? h('div', null, models) : null);
+              h('div', { style: { fontSize: 10, letterSpacing: 0.6, color: MUTED } }, '日期详情'),
+              h('div', { style: { fontSize: 18, fontWeight: 700, marginTop: 2 } }, title)),
+            h('button', { type: 'button', onClick: () => setDetail(null), style: { border: 'none', background: 'transparent', cursor: 'pointer', color: MUTED, fontSize: 15, lineHeight: 1, padding: 2 } }, '×')),
+          row('消费金额', money2(cell.cost)),
+          row('峰时费用', money2(cell.peakCost), PEAK_COLOR),
+          row('闲时费用', money2(cell.offPeakCost), OFF_COLOR),
+          row('API 请求次数', fmtNumberCn(cell.requests) + ' 次'),
+          row('输入（命中缓存）', full(t4.cacheRead)),
+          row('输入（未命中缓存）', full(t4.input)),
+          row('缓存写入', full(t4.cacheWrite)),
+          row('输出', full(t4.output)),
+          row('Token 合计', full(cell.tokens)),
+          cell.models.length > 0
+            ? h('div', { style: { marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(0,0,0,.05)' } },
+                cell.models.slice().sort((a, b) => b.cost - a.cost).map(modelLine))
+            : null);
         return ReactDOM && typeof ReactDOM.createPortal === 'function' && typeof document !== 'undefined'
           ? ReactDOM.createPortal(node, document.body)
           : node;
