@@ -624,7 +624,7 @@ function closeIcon(size = 14) {
       return usageOpen;
     }
 
-    let restartState = { open: false, phase: 'confirm', logPath: '', error: '', toast: '' };
+    let restartState = { open: false, phase: 'confirm', logPath: '', error: '', toast: '', running: [] };
     const restartListeners = new Set();
     function setRestartState(patch) {
       restartState = { ...restartState, ...patch };
@@ -677,18 +677,22 @@ function closeIcon(size = 14) {
     function closeRestart() {
       setRestartState({ open: false });
     }
-    async function confirmRestart() {
-      setRestartState({ phase: 'running', error: '' });
+    async function confirmRestart(force) {
+      setRestartState({ phase: force === true ? 'running' : 'checking', error: '', running: [] });
       try {
         const res = await fetch('/api/precise-billing/restart', {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'content-type': 'application/json' },
-          body: '{}',
+          body: JSON.stringify({ force: force === true }),
         });
         const payload = await res.json().catch(() => ({}));
+        if (res.status === 409 && payload && Array.isArray(payload.sessions)) {
+          setRestartState({ phase: 'busy', running: payload.sessions });
+          return;
+        }
         if (!res.ok || payload.ok !== true) throw new Error(payload.error || ('HTTP ' + res.status));
-        setRestartState({ logPath: payload.logPath || '' });
+        setRestartState({ phase: 'running', logPath: payload.logPath || '' });
         setTimeout(() => {
           if (restartState.open && restartState.phase === 'running') setRestartState({ phase: 'timeout' });
         }, 20000);
@@ -2196,6 +2200,8 @@ function closeIcon(size = 14) {
         '.pb-rst-fill{height:100%;width:8%;border-radius:999px;background:#2f6fed;animation:pb-rst-progress 9s cubic-bezier(.15,.7,.25,1) forwards}',
         '.pb-rst-toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:2147483001;background:rgba(20,22,28,.92);color:#fff;font-size:12px;line-height:1;padding:9px 16px;border-radius:999px;box-shadow:0 10px 26px rgba(0,0,0,.24);animation:pb-rst-toast-in .18s ease}',
         '@keyframes pb-rst-toast-in{from{opacity:0;transform:translateX(-50%) translateY(4px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}',
+        '.pb-rst-list{margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.035)}',
+        '.pb-rst-item{font-size:12px;line-height:1.7;color:var(--dsw-alias-label-primary,#333);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
         '.pb-rst-log{margin-top:10px;font-size:10.5px;line-height:1.6;color:var(--dsw-alias-label-secondary,#777);word-break:break-all;font-family:ui-monospace,Consolas,monospace}',
         '@keyframes pb-rst-fade{from{opacity:0}to{opacity:1}}',
         '@keyframes pb-rst-in{from{opacity:0;transform:translateY(4px) scale(.985)}to{opacity:1;transform:none}}',
@@ -2491,8 +2497,13 @@ function closeIcon(size = 14) {
       }, [state.open]);
       if (!state.open || typeof document === 'undefined' || !ReactDOM || typeof ReactDOM.createPortal !== 'function') return null;
       const phase = state.phase;
-      const title = phase === 'running' ? '正在热重启' : phase === 'timeout' ? '还没自动重开' : phase === 'error' ? '热重启没有发起' : '热重启 DSH';
-      const lead = phase === 'running'
+      const title = phase === 'running' ? '正在热重启' : phase === 'timeout' ? '还没自动重开' : phase === 'error' ? '热重启没有发起' : phase === 'busy' ? '有对话正在运行' : phase === 'checking' ? '准备重启' : '热重启 DSH';
+      const runningCount = Array.isArray(state.running) ? state.running.length : 0;
+      const lead = phase === 'checking'
+        ? '正在确认是否还有对话在运行…'
+        : phase === 'busy'
+          ? '检测到 ' + runningCount + ' 个对话仍在运行。现在重启会中断它们，是否仍要重启？'
+          : phase === 'running'
         ? '窗口即将关闭，并自动重新打开。请稍候，不要重复操作。'
         : phase === 'timeout'
           ? '重启助手可能被安全软件拦截，或当前 DSH 是手动启动的。请手动关闭窗口后重新打开。'
@@ -2500,9 +2511,14 @@ function closeIcon(size = 14) {
             ? state.error
             : '窗口会关闭并自动重新打开，当前会话与对话记录都会保留。';
       const actions = [];
-      if (phase === 'confirm') {
+      if (phase === 'checking') {
         actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
-        actions.push(h('button', { key: 'go', type: 'button', className: 'pb-rst-btn primary', onClick: confirmRestart }, '立即重启'));
+      } else if (phase === 'busy') {
+        actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
+        actions.push(h('button', { key: 'force', type: 'button', className: 'pb-rst-btn primary', onClick: () => confirmRestart(true) }, '仍然重启'));
+      } else if (phase === 'confirm') {
+        actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
+        actions.push(h('button', { key: 'go', type: 'button', className: 'pb-rst-btn primary', onClick: () => confirmRestart(false) }, '立即重启'));
       } else {
         actions.push(h('button', { key: 'close', type: 'button', className: 'pb-rst-btn', onClick: closeRestartWithLog }, phase === 'running' ? '收起' : '知道了'));
       }
@@ -2513,7 +2529,12 @@ function closeIcon(size = 14) {
               h('span', { style: { color: '#2f6fed', display: 'inline-flex' } }, restartIcon(15)),
               title),
             h('div', { className: 'pb-rst-body' }, lead),
-            phase === 'running' ? h('div', { className: 'pb-rst-track' }, h('div', { className: 'pb-rst-fill' })) : null,
+            phase === 'busy' && runningCount > 0
+            ? h('div', { className: 'pb-rst-list' },
+                state.running.slice(0, 5).map((item, index) => h('div', { key: 'run-' + index, className: 'pb-rst-item' }, '· ' + (item.title || item.id || '未命名对话'))),
+                runningCount > 5 ? h('div', { className: 'pb-rst-item' }, '· 还有 ' + (runningCount - 5) + ' 个…') : null)
+            : null,
+          phase === 'running' ? h('div', { className: 'pb-rst-track' }, h('div', { className: 'pb-rst-fill' })) : null,
             (phase === 'running' || phase === 'timeout') && state.logPath ? h('div', { className: 'pb-rst-log' }, '日志：' + state.logPath) : null,
             h('div', { className: 'pb-rst-actions' }, actions))),
         document.body,

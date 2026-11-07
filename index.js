@@ -1279,6 +1279,33 @@ export async function readAccount(ctx) {
  */
 
 let lastRestartAt = 0;
+let hostCtx;
+function runningSessions() {
+  try {
+    const sessions = hostCtx && typeof hostCtx.get === 'function' ? hostCtx.get('sessions') : undefined;
+    const agents = hostCtx && typeof hostCtx.get === 'function' ? hostCtx.get('agents') : undefined;
+    const titles = hostCtx && typeof hostCtx.get === 'function' ? hostCtx.get('sessionTitle') : undefined;
+    if (!sessions || typeof sessions.list !== 'function' || !agents || typeof agents.turnBoundaryOf !== 'function') return [];
+    const result = [];
+    for (const session of sessions.list()) {
+      let open = false;
+      try {
+        const boundary = agents.turnBoundaryOf(session);
+        open = Boolean(boundary && boundary.openTurnStartSeq !== null && boundary.openTurnStartSeq !== undefined);
+      } catch { open = false; }
+      if (!open) continue;
+      let title = '';
+      try {
+        const snapshot = titles && typeof titles.get === 'function' ? titles.get(session) : undefined;
+        title = String((snapshot && snapshot.title) || '');
+      } catch { title = ''; }
+      result.push({ id: String(session.id), title: title || String(session.id), cwd: String((session.header && session.header.cwd) || '') });
+    }
+    return result;
+  } catch {
+    return [];
+  }
+}
 function desktopExePath() {
   const candidates = [
     process.env.DSH_DESKTOP_EXE,
@@ -1341,6 +1368,7 @@ function scheduleHotRestart() {
 }
 
 export function apply(ctx) {
+  hostCtx = ctx;
   const dispose = ctx.webServer.register({
     path: '/api/precise-billing',
     handler: async (req, res) => {
@@ -1375,6 +1403,20 @@ export function apply(ctx) {
 
         if (pathname === '/api/precise-billing/restart') {
       if (req.method !== 'POST') { sendJson(res, 405, { ok: false, error: 'method not allowed' }); return; }
+      let restartBody = {};
+      try { restartBody = JSON.parse((await readBody(req)) || '{}'); } catch { restartBody = {}; }
+      if (restartBody.check === true) {
+        const running = runningSessions();
+        sendJson(res, 200, { ok: true, running });
+        return;
+      }
+      if (restartBody.force !== true) {
+        const running = runningSessions();
+        if (running.length > 0) {
+          sendJson(res, 409, { ok: false, error: 'sessions-running', sessions: running });
+          return;
+        }
+      }
       if (Date.now() - lastRestartAt < 15000) { sendJson(res, 429, { ok: false, error: '刚重启过，请稍等几秒' }); return; }
       try {
         const info = scheduleHotRestart();
