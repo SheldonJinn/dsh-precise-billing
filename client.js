@@ -628,7 +628,7 @@ window.__ModuleLoader__.load({
       if (key === 'last7') return { from: isoDate(addDays(startOfDay, -6)), to: isoDate(startOfDay) };
       if (key === 'last30') return { from: isoDate(addDays(startOfDay, -29)), to: isoDate(startOfDay) };
       if (key === 'thisMonth') {
-        return { from: isoDate(new Date(startOfDay.getFullYear(), startOfDay.getMonth(), 1)), to: isoDate(startOfDay) };
+        return { from: isoDate(new Date(startOfDay.getFullYear(), startOfDay.getMonth(), 1)), to: isoDate(new Date(startOfDay.getFullYear(), startOfDay.getMonth() + 1, 0)) };
       }
       if (key === 'lastMonth') {
         const first = new Date(startOfDay.getFullYear(), startOfDay.getMonth() - 1, 1);
@@ -636,7 +636,7 @@ window.__ModuleLoader__.load({
         return { from: isoDate(first), to: isoDate(last) };
       }
       if (key === 'thisYear') {
-        return { from: isoDate(new Date(startOfDay.getFullYear(), 0, 1)), to: isoDate(startOfDay) };
+        return { from: isoDate(new Date(startOfDay.getFullYear(), 0, 1)), to: isoDate(new Date(startOfDay.getFullYear(), 11, 31)) };
       }
       return { from: isoDate(startOfDay), to: isoDate(startOfDay) };
     }
@@ -1272,6 +1272,29 @@ window.__ModuleLoader__.load({
       return [state, () => setTick((x) => x + 1)];
     }
 
+    function fillDaysWithWindow(days, win) {
+      if (!win || win.from > win.to) return days || [];
+      const map = {};
+      for (const day of days || []) map[day.date] = day;
+      const out = [];
+      const cursor = new Date(win.from + 'T00:00:00');
+      const end = new Date(win.to + 'T00:00:00');
+      while (cursor <= end && out.length < 366) {
+        const key = isoDate(cursor);
+        out.push(map[key] || {
+          date: key,
+          tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 },
+          cost: 0,
+          peakCost: 0,
+          offPeakCost: 0,
+          requests: 0,
+          models: [],
+        });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return out;
+    }
+
     const AUTO_REFRESH_OPTIONS = [[0, '不自动刷新'], [15, '15 秒'], [30, '30 秒'], [60, '1 分钟'], [300, '5 分钟']];
 
     function UsagePanel(props) {
@@ -1317,6 +1340,7 @@ window.__ModuleLoader__.load({
       const prevData = applyLocalSplit(prevFiltered);
       const prevTotals = (prevData && prevData.totals) || { models: [] };
       const win = state.win || (rangeKey === 'custom' && appliedCustom ? appliedCustom : rangeOf(rangeKey));
+      const chartDays = data ? fillDaysWithWindow(data.days, win) : undefined;
       const balance = (props && props.account && props.account.logged && props.account.balance) || (data && data.balance && data.balance.balance);
       const loading = state.status === 'loading';
       const errorText = state.status === 'error' ? state.error : data && data.error === 'not-logged' ? '未检测到 DeepSeek 账号，官方数据不可用' : undefined;
@@ -1405,7 +1429,7 @@ window.__ModuleLoader__.load({
                           h('button', { type: 'button', onClick: () => setChartMode('total'), style: toggleStyle(chartMode === 'total') }, '综合'))),
                       chartMode === 'trend'
                         ? h(UsageCostChart, {
-                            days: data && data.days,
+                            days: chartDays,
                             hours: data && data.hours,
                             dayKey: win.from,
                             singleDay: win.from === win.to,
@@ -1418,10 +1442,10 @@ window.__ModuleLoader__.load({
                         h('div', { style: groupStyle },
                           h('button', { type: 'button', onClick: () => setMetric('tokens'), style: toggleStyle(metric === 'tokens') }, 'Token 数'),
                           h('button', { type: 'button', onClick: () => setMetric('requests'), style: toggleStyle(metric === 'requests') }, '请求数'))),
-                      h(UsageTokenChart, { days: data && data.days, hours: data && data.hours, dayKey: win.from, singleDay: win.from === win.to, models: modelNames, metric })),
+                      h(UsageTokenChart, { days: chartDays, hours: data && data.hours, dayKey: win.from, singleDay: win.from === win.to, models: modelNames, metric })),
                     h('div', { style: usagePanelStyles.section },
                       h('div', { style: usagePanelStyles.sectionTitle }, 'API 请求次数', h('span', { style: { marginLeft: 10, fontSize: 10.5, fontWeight: 400, color: MUTED } }, fmtNumberCn(totals.requests) + ' 次')),
-                      h(UsageRequestsChart, { days: data && data.days, hours: data && data.hours, dayKey: win.from, singleDay: win.from === win.to })),
+                      h(UsageRequestsChart, { days: chartDays, hours: data && data.hours, dayKey: win.from, singleDay: win.from === win.to })),
                     h('div', { style: usagePanelStyles.section },
                       h('div', { style: usagePanelStyles.sectionTitle }, '各模型明细（对比上一周期）'),
                       h(UsageModelTable, { models: totals.models, prevModels: prevTotals.models })))
