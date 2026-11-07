@@ -1584,6 +1584,7 @@ window.__ModuleLoader__.load({
       const [anchor, setAnchor] = React.useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
       const [detail, setDetail] = React.useState(null);
       const [hoverKey, setHoverKey] = React.useState(null);
+      const [expandedYears, setExpandedYears] = React.useState({});
       const weekRef = React.useRef(null);
 
       let from;
@@ -1612,7 +1613,7 @@ window.__ModuleLoader__.load({
         if (dim !== 'week') return;
         const node = weekRef.current;
         if (node && typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }, [dim, anchor.year, state.status]);
+      }, [dim, anchor.year, anchor.month, state.status]);
 
       const allCells = (calendar.matrix ? calendar.rows.flatMap((row) => row.cells) : calendar.cells).filter((cell) => cell && !cell.outside);
       const maxTokens = Math.max.apply(null, allCells.map((cell) => cell.tokens).concat([1]));
@@ -1744,20 +1745,77 @@ window.__ModuleLoader__.load({
       let gridBody = null;
       if (calendar.matrix && dim === 'year') {
         gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
-          calendar.rows.map((row, rowIndex) => h('div', {
-            key: 'year-' + row.label,
-            style: {
-              border: '1px solid rgba(0,0,0,.06)',
-              borderRadius: 12,
-              padding: '12px 14px',
-              background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.92)',
+          calendar.rows.map((row, rowIndex) => {
+            const months = row.cells;
+            const sum = months.reduce((acc, cell) => ({
+              tokens: acc.tokens + cell.tokens,
+              cost: acc.cost + cell.cost,
+              peak: acc.peak + cell.peakCost,
+              off: acc.off + cell.offPeakCost,
+            }), { tokens: 0, cost: 0, peak: 0, off: 0 });
+            const maxCost = Math.max.apply(null, months.map((cell) => cell.cost).concat([0.0001]));
+            const expanded = expandedYears[row.label] === true;
+            const metricRow = (label, value, color) => h('div', {
+              style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, fontSize: 11.5 },
             },
-          },
-            h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 } },
-              h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
-              h('span', { style: { fontSize: 10.5, color: MUTED } }, '12 个月')),
-            h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8 } },
-              row.cells.map((cell, index) => (cell ? cellCard(cell, 'year') : emptyTile('y-' + row.label + '-' + index, 108)))))));
+              h('span', { style: { color: MUTED } }, label),
+              h('span', { style: { fontWeight: 700, color: color || 'var(--dsw-alias-label-primary, #111)', fontVariantNumeric: 'tabular-nums' } }, value));
+            const bars = h('div', {
+              style: { display: 'flex', alignItems: 'flex-end', gap: 4, height: 96, flex: '1 1 auto', minWidth: 0 },
+            },
+              months.map((cell) => {
+                const percent = cell.cost > 0 ? Math.max(3, (cell.cost / maxCost) * 100) : 2;
+                return h('div', {
+                  key: cell.key,
+                  title: cell.label + ' ' + money2(cell.cost),
+                  style: { flex: '1 1 0', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 3, minWidth: 0 },
+                },
+                  h('div', {
+                    style: {
+                      width: '62%', maxWidth: 16, height: percent + '%',
+                      background: cell.cost > 0 ? 'rgba(47,111,237,.62)' : 'rgba(0,0,0,.06)',
+                      borderRadius: '3px 3px 0 0',
+                    },
+                  }),
+                  h('span', { style: { fontSize: 9, color: MUTED, whiteSpace: 'nowrap' } }, Number(cell.key.slice(5)) + '月'));
+              }));
+            return h('div', {
+              key: 'year-' + row.label,
+              style: {
+                border: '1px solid rgba(0,0,0,.07)',
+                borderRadius: 12,
+                padding: '12px 14px',
+                background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.92)',
+              },
+            },
+              h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' } },
+                h('div', { style: { width: 190, flex: '0 0 190px', display: 'flex', flexDirection: 'column', gap: 4 } },
+                  h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 } },
+                    h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
+                    h('button', {
+                      type: 'button',
+                      title: expanded ? '收起月份' : '展开月份',
+                      onClick: () => setExpandedYears({ ...expandedYears, [row.label]: !expanded }),
+                      style: {
+                        width: 24, height: 24, borderRadius: 8, border: '1px solid rgba(0,0,0,.12)',
+                        background: 'transparent', cursor: 'pointer', color: 'inherit', fontSize: 14, lineHeight: 1,
+                      },
+                    }, expanded ? '−' : '+')),
+                  metricRow('Token', fmtNumberCn(sum.tokens)),
+                  metricRow('消费', money2(sum.cost)),
+                  metricRow('峰时', money2(sum.peak), PEAK_COLOR),
+                  metricRow('闲时', money2(sum.off), OFF_COLOR)),
+                bars),
+              expanded
+                ? h('div', {
+                    style: {
+                      display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8,
+                      marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,.05)',
+                    },
+                  },
+                    months.map((cell) => cellCard(cell, 'year')))
+                : null);
+          }));
       } else if (calendar.matrix) {
         gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
           h('div', { style: { display: 'flex', gap: 6, padding: '0 8px 2px' } },
@@ -1812,7 +1870,7 @@ window.__ModuleLoader__.load({
           type: 'button',
           onClick: () => { setAnchor({ year: today.getFullYear(), month: today.getMonth() + 1 }); setDetail(null); },
           style: { padding: '5px 12px', fontSize: 11.5, borderRadius: 8, border: '1px solid rgba(0,0,0,.10)', background: 'transparent', cursor: 'pointer', color: 'inherit' },
-        }, '今天'),
+        }, dim === 'day' ? '今天' : dim === 'week' ? '本周' : dim === 'month' ? '本月' : '今年'),
         officialNeedsLocal ? h('span', { style: { fontSize: 10, color: MUTED } }, '峰/闲取自本地日志') : null,
         state.status === 'loading' ? h('span', { style: { fontSize: 10.5, color: MUTED } }, '加载中…') : null);
 
