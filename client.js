@@ -2100,8 +2100,8 @@ function closeIcon(size = 14) {
         '.pb-side-card:hover .pb-side-actions{opacity:1;pointer-events:auto}',
         '.pb-settings button{background:transparent !important;border:1px solid rgba(0,0,0,.22) !important;color:var(--dsw-alias-label-primary,#111) !important;transition:background .12s ease,color .12s ease,border-color .12s ease}',
         '.pb-settings button:hover{background:rgba(47,111,237,.12) !important;border-color:rgba(47,111,237,.38) !important}',
-        '@keyframes pb-toast-pop{0%{opacity:0;transform:scale(.92)}8%{opacity:.75;transform:scale(1)}88%{opacity:.75}100%{opacity:0}}',
-        '.pb-toast{animation:pb-toast-pop 3.2s ease forwards}',
+        '@keyframes pb-toast-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.94)}8%{opacity:.75;transform:translate(-50%,-50%) scale(1)}88%{opacity:.75;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}',
+        '.pb-toast{animation:pb-toast-pop 2.2s ease forwards}',
         '.pb-settings .pb-seg{border-color:rgba(0,0,0,.22) !important;background:transparent !important}',
         '.pb-settings .pb-seg button{border:none !important;border-radius:0 !important;background:transparent !important;color:var(--dsw-alias-label-primary,#111) !important}',
         '.pb-settings .pb-seg button:hover{background:rgba(47,111,237,.12) !important}',
@@ -2619,7 +2619,7 @@ function closeIcon(size = 14) {
         } catch { setToastPos(null); }
         setToast(text);
         if (toastTimer.current) clearTimeout(toastTimer.current);
-        toastTimer.current = setTimeout(() => setToast(''), 3200);
+        toastTimer.current = setTimeout(() => setToast(''), 2200);
       };
 
       const reset = () => {
