@@ -2608,11 +2608,18 @@ function closeIcon(size = 14) {
       saveRef.current = save;
       const notify = (text) => {
         try {
-          const rect = rootRef.current ? rootRef.current.getBoundingClientRect() : null;
-          if (rect && rect.width > 0) {
-            const viewportMiddle = window.innerHeight / 2;
-            const y = Math.min(Math.max(rect.top + rect.height / 2, rect.top + 60), Math.min(rect.bottom - 60, viewportMiddle));
-            setToastPos({ x: rect.left + rect.width / 2, y });
+          const root = rootRef.current;
+          if (root) {
+            const rect = root.getBoundingClientRect();
+            let scroll = null;
+            let cursor = root.parentElement;
+            while (cursor && cursor !== document.body) {
+              const style = window.getComputedStyle(cursor);
+              if (/(auto|scroll)/.test(style.overflowY) && cursor.scrollHeight > cursor.clientHeight + 4) { scroll = cursor; break; }
+              cursor = cursor.parentElement;
+            }
+            const view = scroll ? scroll.getBoundingClientRect() : { top: 0, height: window.innerHeight };
+            setToastPos({ x: rect.left + rect.width / 2, y: view.top + view.height / 2 });
           } else {
             setToastPos(null);
           }
