@@ -1773,12 +1773,13 @@ window.__ModuleLoader__.load({
                 h('span', { style: { fontSize: big ? 17 : mini ? 13 : 16, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)', whiteSpace: 'nowrap', textAlign: 'center' } }, cell.label),
                 isToday
                   ? h('span', {
+                      className: 'pb-today-badge',
                       style: {
-                        position: 'absolute', right: 0, top: 0, display: 'inline-flex', alignItems: 'center', gap: 4,
+                        position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: 4,
                         fontSize: 9.5, color: '#c0392b', whiteSpace: 'nowrap', fontWeight: 500,
                       },
                     },
-                      h('i', { style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' }, className: 'pb-today-dot' }),
+                      h('i', { style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' } }),
                       '今天')
                   : (cell.sub
                       ? h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap', textAlign: 'center' } }, cell.sub)
@@ -2080,8 +2081,8 @@ window.__ModuleLoader__.load({
 
         '.pb-gear{transition:opacity .15s ease}.pb-gear:hover{opacity:1 !important}',
         '.pb-field{transition:background .12s ease;border-radius:4px}.pb-field:hover{background:rgba(0,0,0,.04)}',
-        '@keyframes pb-today-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.72)}}',
-        '.pb-today-dot{animation:pb-today-pulse 1.6s ease-in-out infinite}',
+        '@keyframes pb-today-pulse{0%,100%{opacity:1}50%{opacity:.5}}',
+        '.pb-today-badge{animation:pb-today-pulse 2.8s ease-in-out infinite}',
         '@keyframes pb-bill-cursor{0%,100%{opacity:1}50%{opacity:.45}}',
         '.pb-bill-cursor{animation:pb-bill-cursor 1s ease-in-out infinite}',
         '.pb-bill-col-end{align-items:flex-end !important;text-align:right}',
