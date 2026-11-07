@@ -2318,6 +2318,8 @@ function closeIcon(size = 14) {
       }
 
       const logged = account?.logged === true;
+      const barHidden = draft.position === 'hidden';
+      const sidebarHidden = draft.sidebar === false;
       const monthCostText = logged ? money(Number(account.monthCost)) : '—';
       const balanceText = logged && Number.isFinite(Number(account.balance)) ? money(Number(account.balance)) : '—';
 
@@ -2640,23 +2642,23 @@ function closeIcon(size = 14) {
               options: [{ value: 'hidden', label: '隐藏' }, { value: 'composer', label: '输入框下方' }, { value: 'header', label: '标题栏' }],
               onChange: (value) => set({ position: value }),
             })),
-          h(Field, { label: '字体' },
+          barHidden ? null : h(Field, { label: '字体' },
             h('select', { style: inputStyle, value: draft.fontFamily, onChange: (e) => set({ fontFamily: e.target.value }) },
               Object.keys(FONT_LABELS).map((key) => h('option', { key, value: key }, FONT_LABELS[key])))),
-          h(Field, { label: '字号' },
+          barHidden ? null : h(Field, { label: '字号' },
             h('input', { type: 'number', min: 9, max: 18, style: { ...inputStyle, width: 80 }, value: draft.fontSize, onChange: (e) => set({ fontSize: Number(e.target.value) || 11 }) })),
-          h(Field, { label: '颜色' },
+          barHidden ? null : h(Field, { label: '颜色' },
             h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
               h('input', { type: 'color', value: /^#[0-9a-fA-F]{6}$/.test(draft.color) ? draft.color : '#666666', onChange: (e) => set({ color: e.target.value }), style: { width: 34, height: 24, padding: 0, border: 'none', background: 'none', cursor: 'pointer' } }),
               h('button', { type: 'button', style: { ...inputStyle, width: 'auto', padding: '4px 10px', cursor: 'pointer' }, onClick: () => set({ color: '' }) }, '跟随主题'))),
-          h(Field, { label: '显示内容' },
+          barHidden ? null : h(Field, { label: '显示内容' },
             h('div', { style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center' } },
               h(Check, { label: '峰时/闲时', checked: draft.chipPhase !== false, onChange: (value) => set({ chipPhase: value }) }),
               h(Check, { label: '本次', checked: draft.chipSession !== false, onChange: (value) => set({ chipSession: value }) }),
               h(Check, { label: '今日', checked: draft.chipToday !== false, onChange: (value) => set({ chipToday: value }) }),
               h(Check, { label: '累计', checked: draft.chipTotal !== false, onChange: (value) => set({ chipTotal: value }) }),
               h(Check, { label: '余额', checked: draft.chipBalance !== false, onChange: (value) => set({ chipBalance: value }) }))),
-          h(Field, { label: '刷新间隔' },
+          barHidden ? null : h(Field, { label: '刷新间隔' },
             h('select', { style: { ...inputStyle, width: 130 }, value: draft.chipPollMs || 10000, onChange: (e) => set({ chipPollMs: Number(e.target.value) }) },
               h('option', { value: 1000 }, '1 秒'),
               h('option', { value: 5000 }, '5 秒'),
@@ -2665,7 +2667,7 @@ function closeIcon(size = 14) {
               h('option', { value: 60000 }, '1 分钟'),
               h('option', { value: 300000 }, '5 分钟'),
               h('option', { value: 600000 }, '10 分钟'))),
-          h(Field, { label: '预览' },
+          barHidden ? null : h(Field, { label: '预览' },
             h('div', { style: { width: '100%', display: 'flex', justifyContent: 'flex-end', padding: '6px 0' } },
               buildChip(draft, families, data, summary.status, account, {})))),
 
@@ -2676,13 +2678,13 @@ function closeIcon(size = 14) {
               options: [{ value: 'on', label: '显示' }, { value: 'off', label: '隐藏' }],
               onChange: (value) => set({ sidebar: value === 'on' }),
             })),
-          h(Field, { label: '风格' },
+          sidebarHidden ? null : h(Field, { label: '风格' },
             h('select', { style: { ...inputStyle, width: 150 }, value: draft.sidebarStyle, onChange: (e) => set({ sidebarStyle: e.target.value }) },
               h('option', { value: 'standard' }, '标准'),
               h('option', { value: 'simple' }, '简约'),
               h('option', { value: 'compact' }, '紧凑'),
               h('option', { value: 'custom' }, '自定义'))),
-          h(Field, { label: '刷新间隔' },
+          sidebarHidden ? null : h(Field, { label: '刷新间隔' },
             h('select', { style: { ...inputStyle, width: 130 }, value: draft.sidebarPollMs || 30000, onChange: (e) => set({ sidebarPollMs: Number(e.target.value) }) },
               h('option', { value: 1000 }, '1 秒'),
               h('option', { value: 5000 }, '5 秒'),
@@ -2691,7 +2693,7 @@ function closeIcon(size = 14) {
               h('option', { value: 60000 }, '1 分钟'),
               h('option', { value: 300000 }, '5 分钟'),
               h('option', { value: 600000 }, '10 分钟'))),
-          draft.sidebarStyle === 'custom'
+          sidebarHidden ? null : draft.sidebarStyle === 'custom'
             ? h(Field, { label: '自定义内容' },
                 h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, width: '100%' } },
                   h('div', { style: { fontSize: 11, color: MUTED } }, '顶部金额'),
