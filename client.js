@@ -1338,7 +1338,7 @@ window.__ModuleLoader__.load({
               h('span', null, mode === 'official' ? '官方账单合计 ' : '本地用量合计 ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtMoneyCn(totals.cost))),
               mode === 'official' && data && data.peakSplit === false ? h('span', null, '峰/闲取自本地日志') : null,
               mode === 'official' ? h('span', null, '含该账号所有客户端') : h('span', null, '仅本机 DSH 会话')),
-            h('div', { style: usagePanelStyles.body },
+            h('div', { style: tab === 'calendar' ? { ...usagePanelStyles.body, overflow: 'hidden', display: 'flex', flexDirection: 'column' } : usagePanelStyles.body },
               h('div', { style: usagePanelStyles.cards },
                 h(UsageStatCard, { label: 'Tokens', value: fmtNumberCn(usageTotalTokens(tokens)), hint: '命中率 ' + (hit * 100).toFixed(2) + '%' }),
                 h(UsageStatCard, { label: 'API 请求次数', value: fmtNumberCn(totals.requests) + ' 次', hint: mode === 'official' ? '官方请求统计' : '本地会话统计' }),
@@ -1374,7 +1374,7 @@ window.__ModuleLoader__.load({
                     h('div', { style: usagePanelStyles.section },
                       h('div', { style: usagePanelStyles.sectionTitle }, '各模型明细（对比上一周期）'),
                       h(UsageModelTable, { models: totals.models, prevModels: prevTotals.models })))
-                : h('div', { style: usagePanelStyles.section },
+                : h('div', { style: { ...usagePanelStyles.section, flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column', marginBottom: 0 } },
                     h('div', { style: usagePanelStyles.sectionTitle }, '用量日历'),
                     h(UsageCalendar, { mode, model: calendarModel }))))), document.body);
     }
@@ -1786,13 +1786,7 @@ window.__ModuleLoader__.load({
         officialNeedsLocal ? h('span', { style: { fontSize: 10, color: MUTED } }, '峰/闲取自本地日志') : null,
         state.status === 'loading' ? h('span', { style: { fontSize: 10.5, color: MUTED } }, '加载中…') : null);
 
-      const stickyHead = h('div', {
-        style: {
-          position: 'sticky', top: 0, zIndex: 5, margin: '0 -16px', padding: '4px 16px 8px',
-          background: 'var(--dsw-alias-bg-layer-1, #fff)',
-          borderBottom: '1px solid rgba(0,0,0,.05)',
-        },
-      }, headerRow, totalStrip);
+      const head = h('div', { style: { padding: '2px 2px 8px', borderBottom: '1px solid rgba(0,0,0,.05)', flex: '0 0 auto' } }, headerRow, totalStrip);
 
       React.useEffect(() => {
         if (!detail) return undefined;
@@ -1872,7 +1866,11 @@ window.__ModuleLoader__.load({
           : node;
       })() : null;
 
-      return h('div', null, stickyHead, h('div', { style: { background: 'rgba(0,0,0,.045)', borderRadius: 12, padding: 10 } }, gridBody), pop);
+      return h('div', { style: { display: 'flex', flexDirection: 'column', minHeight: 0, flex: '1 1 auto' } },
+        head,
+        h('div', { style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overflowX: 'hidden', marginTop: 8 } },
+          h('div', { style: { background: 'rgba(0,0,0,.045)', borderRadius: 12, padding: 10 } }, gridBody)),
+        pop);
     }
 
     function UsageHost(props) {
