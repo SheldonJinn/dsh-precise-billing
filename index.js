@@ -767,7 +767,7 @@ function sanitizeSettings(input) {
     for (const key of ['sidebar', 'sidebarSession', 'sidebarToday', 'sidebarTotal', 'sidebarPeak', 'sidebarProgress']) {
       if (typeof input[key] === 'boolean') next[key] = input[key];
     }
-    if (['standard', 'simple', 'compact', 'merged'].includes(input.sidebarStyle)) next.sidebarStyle = input.sidebarStyle;
+    if (['standard', 'simple', 'compact', 'merged', 'custom'].includes(input.sidebarStyle)) next.sidebarStyle = input.sidebarStyle;
     if ([1000, 5000, 10000, 30000, 60000, 300000, 600000].includes(input.pollMs)) next.pollMs = input.pollMs;
     if ([1000, 5000, 10000, 30000, 60000, 300000, 600000].includes(input.chipPollMs)) next.chipPollMs = input.chipPollMs;
     if ([1000, 5000, 10000, 30000, 60000, 300000, 600000].includes(input.sidebarPollMs)) next.sidebarPollMs = input.sidebarPollMs;
