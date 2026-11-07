@@ -1570,7 +1570,7 @@ window.__ModuleLoader__.load({
       let to;
       if (dim === 'day') {
         from = isoDate(new Date(anchor.year, anchor.month - 1, 1));
-        to = isoDate(new Date(anchor.year, anchor.month, 0));
+        to = isoDate(new Date(anchor.year, anchor.month + 1, 0));
       } else if (dim === 'year') {
         from = anchor.year - 1 + '-01-01';
         to = anchor.year + '-12-31';
@@ -1587,6 +1587,9 @@ window.__ModuleLoader__.load({
       if (mode === 'local') for (const day of days) localMap[day.date] = day;
       const officialNeedsLocal = mode === 'official' && data && data.peakSplit === false;
       const calendar = buildCalendar(days, localMap, dim, anchor, todayKey, officialNeedsLocal);
+      const nextAnchor = anchor.month === 12 ? { year: anchor.year + 1, month: 1 } : { year: anchor.year, month: anchor.month + 1 };
+      const calendarNext = dim === 'day' ? buildCalendar(days, localMap, 'day', nextAnchor, todayKey, officialNeedsLocal) : null;
+      const titleText = dim === 'day' ? anchor.year + ' 年 ' + anchor.month + ' 月 – ' + nextAnchor.month + ' 月' : calendar.title;
 
       React.useEffect(() => {
         if (dim !== 'week') return;
@@ -1594,7 +1597,7 @@ window.__ModuleLoader__.load({
         if (node && typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }, [dim, anchor.year, state.status]);
 
-      const allCells = (calendar.matrix ? calendar.rows.flatMap((row) => row.cells) : calendar.cells).filter(Boolean);
+      const allCells = (dim === 'day' ? calendar.cells.concat(calendarNext.cells) : calendar.matrix ? calendar.rows.flatMap((row) => row.cells) : calendar.cells).filter(Boolean);
       const maxTokens = Math.max.apply(null, allCells.map((cell) => cell.tokens).concat([1]));
       const calTotals = allCells.reduce((acc, cell) => ({
         tokens: acc.tokens + cell.tokens,
@@ -1731,10 +1734,15 @@ window.__ModuleLoader__.load({
                 cell ? cellCard(cell, dim === 'year' ? 'year' : 'week') : emptyTile('e-' + row.label + '-' + index, dim === 'year' ? 74 : 62));
             }))));
       } else if (dim === 'day') {
-        const cells = calendar.cells;
-        gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 } },
-          weekday.map((name) => h('div', { key: 'w-' + name, style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', paddingBottom: 3, fontWeight: 700 } }, name)),
-          cells.map((cell, index) => (cell ? cellCard(cell, 'day') : emptyTile('blank-' + index, 62))));
+        const monthGrid = (cal, label) => h('div', { key: 'month-' + label, style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+          h('div', { style: { fontSize: 13, fontWeight: 700, color: 'var(--dsw-alias-label-primary, #111)', padding: '2px 2px 0' } }, label),
+          h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 } },
+            cal.cells.map((cell, index) => (cell ? cellCard(cell, 'day') : emptyTile('blank-' + label + '-' + index, 62)))));
+        gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18 } },
+          h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 } },
+            weekday.map((name) => h('div', { key: 'w-' + name, style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', paddingBottom: 3, fontWeight: 700 } }, name))),
+          monthGrid(calendar, anchor.year + ' 年 ' + anchor.month + ' 月'),
+          monthGrid(calendarNext, nextAnchor.year + ' 年 ' + nextAnchor.month + ' 月'));
       } else {
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 } },
           calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'month') : emptyTile('blank-' + index, 104))));
@@ -1774,7 +1782,7 @@ window.__ModuleLoader__.load({
       const headerRow = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 } },
         dimPills,
         h('div', { style: { flex: '1 1 160px', textAlign: 'center', minWidth: 140 } },
-          h('span', { style: { fontSize: 16, fontWeight: 700, letterSpacing: 0.2 } }, calendar.title)),
+          h('span', { style: { fontSize: 16, fontWeight: 700, letterSpacing: 0.2 } }, titleText)),
         navButton('‹', () => shift(-1), '上一期'),
         navButton('›', () => shift(1), '下一期'),
         h('button', {
