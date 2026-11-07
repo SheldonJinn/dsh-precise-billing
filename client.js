@@ -1852,7 +1852,8 @@ function closeIcon(size = 14) {
         const mini = variant === 'year';
         const level = levelOf(cell.tokens);
         const heat = isToday ? 'rgba(47,111,237,.10)' : 'transparent';
-        const idleWeek = dim === 'week' && !isToday && hoverKey !== cell.key;
+        const hoverCell = dim === 'day' || dim === 'week' || dim === 'month';
+        const idleCell = hoverCell && !isToday && hoverKey !== cell.key;
         const title = (cell.label || cell.sub ? (cell.label + ' ' + (cell.sub || '')).trim() + '\n' : '') +
           'Tokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次\n' +
           '总额 ' + money2(cell.cost) + '（峰时 ' + money2(cell.peakCost) + ' / 闲时 ' + money2(cell.offPeakCost) + '）';
@@ -1869,9 +1870,9 @@ function closeIcon(size = 14) {
             boxSizing: 'border-box',
             padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
-            border: '1px solid ' + (idleWeek ? 'rgba(0,0,0,.09)' : dim === 'week' && !isToday ? 'rgba(47,111,237,.30)' : 'rgba(0,0,0,.14)'),
-            background: idleWeek ? 'rgba(0,0,0,.035)' : dim === 'week' && !isToday ? 'rgba(47,111,237,.10)' : heat,
-            opacity: idleWeek ? 0.55 : 1,
+            border: '1px solid ' + (idleCell ? 'rgba(0,0,0,.09)' : hoverCell ? 'rgba(47,111,237,.30)' : 'rgba(0,0,0,.14)'),
+            background: idleCell ? 'rgba(0,0,0,.035)' : hoverCell && !isToday ? 'rgba(47,111,237,.10)' : heat,
+            opacity: idleCell ? 0.55 : 1,
             boxShadow: hoverKey === cell.key ? '0 6px 16px rgba(0,0,0,.10)' : 'none',
             transform: hoverKey === cell.key ? 'translateY(-1px)' : 'none',
             transition: 'box-shadow .14s ease, transform .14s ease, border-color .14s ease, background .14s ease, opacity .14s ease',
