@@ -1660,6 +1660,7 @@ window.__ModuleLoader__.load({
       const [detail, setDetail] = React.useState(null);
       const [hoverKey, setHoverKey] = React.useState(null);
       const [expandedYears, setExpandedYears] = React.useState({});
+      const [hoverRow, setHoverRow] = React.useState(null);
       const weekRef = React.useRef(null);
 
       let from;
@@ -1880,7 +1881,7 @@ window.__ModuleLoader__.load({
               },
             },
               h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' } },
-                h('div', { style: { width: 190, flex: '0 0 190px', display: 'flex', flexDirection: 'column', gap: 4 } },
+                h('div', { style: { width: 190, flex: '0 0 190px', display: 'flex', flexDirection: 'column', gap: 6 } },
                   h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 } },
                     h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
                     h('button', {
@@ -1917,11 +1918,14 @@ window.__ModuleLoader__.load({
             }, (calendar.headers && calendar.headers[index]) || ('第' + (index + 1) + '周')))),
           calendar.rows.map((row, rowIndex) => h('div', {
             key: 'row-' + row.label,
+            onMouseEnter: () => setHoverRow(row.label),
+            onMouseLeave: () => setHoverRow(null),
             style: {
-              display: 'flex', gap: 6, padding: '5px 8px', alignItems: 'stretch',
+              display: 'flex', gap: 6, padding: '0 8px', alignItems: 'stretch',
               borderRadius: 8,
-              background: 'transparent',
-            },
+              background: hoverRow === row.label ? 'rgba(47,111,237,.05)' : 'transparent',
+              transition: 'background .12s ease',
+          },
           },
             h('div', { style: { width: 52, flex: '0 0 52px', fontSize: 13, color: 'var(--dsw-alias-label-primary, #111)', display: 'flex', alignItems: 'center', fontWeight: 700 } }, row.label),
             Array.from({ length: calendar.columns }, (_, index) => {
