@@ -1924,10 +1924,12 @@ window.__ModuleLoader__.load({
               display: 'flex', gap: 6, padding: '0 8px', alignItems: 'stretch',
               borderRadius: 8,
               background: hoverRow === row.label ? 'rgba(47,111,237,.05)' : 'transparent',
+              borderTop: rowIndex > 0 ? '1px solid rgba(0,0,0,.07)' : undefined,
+              paddingTop: rowIndex > 0 ? 6 : 0,
               transition: 'background .12s ease',
           },
           },
-            h('div', { style: { width: 52, flex: '0 0 52px', fontSize: 13, color: 'var(--dsw-alias-label-primary, #111)', display: 'flex', alignItems: 'center', fontWeight: 700 } }, row.label),
+            h('div', { style: { width: 56, flex: '0 0 56px', fontSize: 13, color: 'var(--dsw-alias-label-primary, #111)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, background: 'rgba(47,111,237,.07)', borderRadius: 8, padding: '6px 0' } }, row.label),
             Array.from({ length: calendar.columns }, (_, index) => {
               const cell = row.cells[index];
               return h('div', { key: 'cell-' + row.label + '-' + index, style: { flex: '1 1 0', minWidth: 0 } },
