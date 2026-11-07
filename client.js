@@ -1673,7 +1673,7 @@ window.__ModuleLoader__.load({
           onClick: (event) => setDetail({ cell, x: event.clientX, y: event.clientY }),
           style: {
             minWidth: 0,
-            height: big ? 168 : mini ? 140 : 156,
+            height: big ? 152 : mini ? 124 : 140,
             boxSizing: 'border-box',
             padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
@@ -1693,13 +1693,13 @@ window.__ModuleLoader__.load({
                 h('span', { style: { fontSize: big ? 17 : mini ? 13 : 16, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)' } }, cell.label),
                 h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, cell.sub))
             : null,
-          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0 } },
-            h('span', { style: { fontSize: big ? 10 : mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap', lineHeight: 1.2 } }, 'Token总量'),
-            h('span', { style: { fontSize: big ? 18 : mini ? 12.5 : 15.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.2, whiteSpace: 'nowrap' } },
+          h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 0 } },
+            h('span', { style: { fontSize: big ? 9.5 : mini ? 8.5 : 9, color: MUTED, whiteSpace: 'nowrap', flex: '0 0 auto' } }, 'Token数'),
+            h('span', { style: { fontSize: big ? 17 : mini ? 11.5 : 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.2, marginLeft: 'auto', whiteSpace: 'nowrap' } },
               empty ? '—' : fmtNumberCn(cell.tokens))),
-          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0 } },
-            h('span', { style: { fontSize: big ? 10 : mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap', lineHeight: 1.2 } }, '总消费'),
-            h('span', { style: { fontSize: big ? 13 : mini ? 10.5 : 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.2, whiteSpace: 'nowrap' } },
+          h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 0 } },
+            h('span', { style: { fontSize: big ? 9.5 : mini ? 8.5 : 9, color: MUTED, whiteSpace: 'nowrap', flex: '0 0 auto' } }, '总消费'),
+            h('span', { style: { fontSize: big ? 12.5 : mini ? 10 : 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', marginLeft: 'auto', whiteSpace: 'nowrap' } },
               empty ? '—' : money2(cell.cost))),
           empty ? null : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' } },
             splitRow('峰时', cell.peakCost, PEAK_COLOR, big ? 10.5 : mini ? 9.5 : 10),
@@ -1757,7 +1757,7 @@ window.__ModuleLoader__.load({
               h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
               h('span', { style: { fontSize: 10.5, color: MUTED } }, '12 个月')),
             h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8 } },
-              row.cells.map((cell, index) => (cell ? cellCard(cell, 'year') : emptyTile('y-' + row.label + '-' + index, 140)))))));
+              row.cells.map((cell, index) => (cell ? cellCard(cell, 'year') : emptyTile('y-' + row.label + '-' + index, 124)))))));
       } else if (calendar.matrix) {
         gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
           h('div', { style: { display: 'flex', gap: 6, padding: '0 8px 2px' } },
@@ -1778,13 +1778,13 @@ window.__ModuleLoader__.load({
             Array.from({ length: calendar.columns }, (_, index) => {
               const cell = row.cells[index];
               return h('div', { key: 'cell-' + row.label + '-' + index, style: { flex: '1 1 0', minWidth: 0 } },
-                cell ? cellCard(cell, dim === 'year' ? 'year' : 'week') : emptyTile('e-' + row.label + '-' + index, dim === 'year' ? 140 : 156));
+                cell ? cellCard(cell, dim === 'year' ? 'year' : 'week') : emptyTile('e-' + row.label + '-' + index, dim === 'year' ? 124 : 140));
             }))));
       } else if (dim === 'day') {
         const outsideTile = (cell) => h('div', {
           key: cell.key,
           style: {
-            height: 156, boxSizing: 'border-box', borderRadius: 10,
+            height: 140, boxSizing: 'border-box', borderRadius: 10,
             border: '1px solid rgba(0,0,0,.05)', background: 'transparent',
             padding: '8px 10px', color: 'rgba(0,0,0,.38)', fontSize: 12, fontWeight: 600,
             userSelect: 'none', display: 'flex', flexDirection: 'column', gap: 3,
@@ -1793,13 +1793,13 @@ window.__ModuleLoader__.load({
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 } },
           weekday.map((name) => h('div', { key: 'w-' + name, style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', paddingBottom: 3, fontWeight: 700 } }, name)),
           calendar.cells.map((cell, index) => {
-            if (!cell) return h('div', { key: 'blank-' + index, style: { height: 156, boxSizing: 'border-box' } });
+            if (!cell) return h('div', { key: 'blank-' + index, style: { height: 140, boxSizing: 'border-box' } });
             if (cell.outside) return outsideTile(cell);
             return cellCard(cell, 'day');
           }));
       } else {
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 } },
-          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'month') : emptyTile('blank-' + index, 168))));
+          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'month') : emptyTile('blank-' + index, 152))));
       }
 
       const headerRow = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 } },
