@@ -1342,7 +1342,7 @@ window.__ModuleLoader__.load({
               h('div', { style: usagePanelStyles.cards },
                 h(UsageStatCard, { label: 'Tokens', value: fmtNumberCn(usageTotalTokens(tokens)), hint: '命中率 ' + (hit * 100).toFixed(2) + '%' }),
                 h(UsageStatCard, { label: 'API 请求次数', value: fmtNumberCn(totals.requests) + ' 次', hint: mode === 'official' ? '官方请求统计' : '本地会话统计' }),
-                h(UsageStatCard, { label: '消费金额', value: fmtMoneyCn(totals.cost), hint: '峰时 ' + fmtMoneyCn(totals.peakCost) + ' · 闲时 ' + fmtMoneyCn(totals.offPeakCost) }),
+                h(UsageStatCard, { label: '消费金额', value: fmtMoneyCn(totals.cost), hint: h('span', null, h('span', { style: { color: PEAK_COLOR } }, '峰时 ' + '¥' + Number(totals.peakCost || 0).toFixed(2)), h('span', { style: { color: MUTED } }, ' · '), h('span', { style: { color: OFF_COLOR } }, '闲时 ' + '¥' + Number(totals.offPeakCost || 0).toFixed(2))) }),
                 h(UsageStatCard, { label: '余额', value: balance === undefined ? '—' : fmtMoneyCn(balance), hint: '官方账户余额' })),
               tab === 'trend'
                 ? h('div', null,
