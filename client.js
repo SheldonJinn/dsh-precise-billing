@@ -2667,7 +2667,7 @@ function closeIcon(size = 14) {
               h('option', { value: 60000 }, '1 分钟'),
               h('option', { value: 300000 }, '5 分钟'),
               h('option', { value: 600000 }, '10 分钟'))),
-          barHidden ? null : h(Field, { label: '预览' },
+          barHidden ? null : sidebarHidden ? null : h(Field, { label: '预览' },
             h('div', { style: { width: '100%', display: 'flex', justifyContent: 'flex-end', padding: '6px 0' } },
               buildChip(draft, families, data, summary.status, account, {})))),
 
@@ -2721,7 +2721,7 @@ function closeIcon(size = 14) {
                     h(Check, { label: '下一时段范围', flush: true, checked: draft.custom.d5 !== false, onChange: (v) => setCustom('d5', v) }),
                     h(Check, { label: '剩余时长', flush: true, checked: draft.custom.d6 !== false, onChange: (v) => setCustom('d6', v) }))))
             : null,
-          h(Field, { label: '预览' },
+          sidebarHidden ? null : h(Field, { label: '预览' },
             h('div', { style: { width: '100%', display: 'flex', justifyContent: 'flex-end' } },
               h('div', { style: { width: 300, padding: 8, borderRadius: 8, border: '1px dashed var(--dsw-alias-border-l1, rgba(0,0,0,.18))' } },
                 buildSidebar(draft, families, data, account, now, true))))),
