@@ -1957,7 +1957,7 @@ window.__ModuleLoader__.load({
       return h('div', { style: { display: 'flex', flexDirection: 'column', minHeight: 0, flex: '1 1 auto' } },
         head,
         h('div', { style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overflowX: 'hidden', marginTop: 8 } },
-          h('div', { style: { background: 'rgba(0,0,0,.03)', borderRadius: 12, padding: 10 } }, gridBody)),
+          h('div', { style: { background: dim === 'year' ? 'rgba(0,0,0,.03)' : '#ffffff', borderRadius: 12, padding: 10 } }, gridBody)),
         pop);
     }
 
