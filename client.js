@@ -1773,13 +1773,12 @@ window.__ModuleLoader__.load({
                 h('span', { style: { fontSize: big ? 17 : mini ? 13 : 16, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)', whiteSpace: 'nowrap', textAlign: 'center' } }, cell.label),
                 isToday
                   ? h('span', {
-                      className: 'pb-today-badge',
                       style: {
                         position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: 4,
                         fontSize: 10.5, color: '#c0392b', whiteSpace: 'nowrap', fontWeight: 700,
                       },
                     },
-                      h('i', { style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' } }),
+                      h('i', { className: 'pb-today-badge', style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' } }),
                       dim === 'day' ? '今天' : dim === 'week' ? '本周' : dim === 'month' ? '本月' : '今年')
                   : (cell.sub
                       ? h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap', textAlign: 'center' } }, cell.sub)
