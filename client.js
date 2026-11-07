@@ -1758,7 +1758,7 @@ window.__ModuleLoader__.load({
             const metricRow = (label, value, color) => h('div', {
               style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, fontSize: 11.5 },
             },
-              h('span', { style: { color: MUTED } }, label),
+              h('span', { style: { color: color || MUTED } }, label),
               h('span', { style: { fontWeight: 700, color: color || 'var(--dsw-alias-label-primary, #111)', fontVariantNumeric: 'tabular-nums' } }, value));
             const bars = h('div', {
               style: { display: 'flex', alignItems: 'flex-end', gap: 4, height: 96, flex: '1 1 auto', minWidth: 0 },
