@@ -281,7 +281,12 @@ window.__ModuleLoader__.load({
         }));
     }
 
-    function closeIcon(size = 14) {
+    function chartIcon(size = 12) {
+  return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
+    h('path', { d: 'M4 20V10M12 20V4M20 20v-8', stroke: 'currentColor', strokeWidth: 2.2, strokeLinecap: 'round' }));
+}
+
+function closeIcon(size = 14) {
       return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
         h('path', { d: 'M6 6L18 18M18 6L6 18', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' }));
     }
@@ -2287,9 +2292,10 @@ window.__ModuleLoader__.load({
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
+        paddingRight: 34,
       };
 
-      const gridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 1, alignItems: 'center', paddingRight: 16 };
+      const gridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 1, alignItems: 'center', paddingRight: 34 };
 
       const title = '累计消费 ' + totalText + ' · 账户余额 ' + money(Number(account?.balance)) + '\n' +
         (phase.peak ? '目前峰时' : '目前闲时') + ' 进度 ' + pct(phase.progress) + ' · ' + fmtClock(phase.until) + ' 转' + (phase.peak ? '闲时' : '峰时');
@@ -2319,7 +2325,7 @@ window.__ModuleLoader__.load({
         title: '用量看板',
         onClick: () => setUsageOpen(true),
         style: { position: 'absolute', top: 0, right: 18, border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 1px', color: 'var(--dsw-alias-label-secondary, #666)', fontSize: 12, lineHeight: 1, opacity: 0.55 },
-      }, '📊');
+      }, chartIcon(12));
 
       const cell = (label, value, full) => h('div', {
         style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 },
