@@ -1028,11 +1028,11 @@ window.__ModuleLoader__.load({
         const next = selected.includes(name) ? selected.filter((item) => item !== name) : selected.concat(name);
         onChange(next.length === 0 ? 'all' : next);
       };
-      return h('div', { style: { position: 'relative' } },
+      return h('div', { style: { position: 'relative', flex: '1 1 180px', minWidth: 150 } },
         h('button', {
           type: 'button',
           onClick: () => setOpen(!open),
-          style: { fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit', cursor: 'pointer' },
+          style: { width: '100%', textAlign: 'left', fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit', cursor: 'pointer' },
         }, (allSelected ? '全部模型（' + models.length + '）' : '已选 ' + count + ' 个模型') + ' ▾'),
         open
           ? h('div', {
@@ -1086,7 +1086,7 @@ window.__ModuleLoader__.load({
         borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
       },
       tabs: { display: 'flex', gap: 18, padding: '0 16px', borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))' },
-      controls: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 16px' },
+      controls: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 16px', minHeight: 50, boxSizing: 'border-box' },
       body: { flex: '1 1 auto', overflowY: 'auto', padding: '4px 16px 18px' },
       cards: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, margin: '10px 0 14px' },
       card: {
@@ -1307,13 +1307,12 @@ window.__ModuleLoader__.load({
                 },
               }, key === 'trend' ? '用量趋势' : '用量日历'))),
             h('div', { style: usagePanelStyles.controls },
-              tab === 'trend'
-                ? h('select', {
-                    value: rangeKey,
-                    onChange: (event) => setRangeKey(event.target.value),
-                    style: { fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' },
-                  }, USAGE_RANGES.concat([{ value: 'custom', label: '自定义' }]).map((item) => h('option', { key: item.value, value: item.value }, item.label)))
-                : null,
+              h('select', {
+                value: rangeKey,
+                onChange: (event) => setRangeKey(event.target.value),
+                title: tab === 'calendar' ? '趋势页的时间范围（日历页用下方年月导航）' : '时间范围',
+                style: { flex: '1 1 170px', fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit', minWidth: 132, opacity: tab === 'calendar' ? 0.55 : 1 },
+              }, USAGE_RANGES.concat([{ value: 'custom', label: '自定义' }]).map((item) => h('option', { key: item.value, value: item.value }, item.label))),
               tab === 'trend' && rangeKey === 'custom'
                 ? h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5 } },
                     h('input', { type: 'date', value: customFrom, onChange: (event) => setCustomFrom(event.target.value), style: { fontSize: 11.5, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' } }),
