@@ -1531,7 +1531,7 @@ window.__ModuleLoader__.load({
           matrix: true,
           rows,
           columns: Math.max(...rows.map((row) => row.cells.length)),
-          title: year + ' 年 · 全年 1-12 月',
+          title: year + ' 年',
         };
       }
       if (dim === 'year') {
@@ -1560,7 +1560,7 @@ window.__ModuleLoader__.load({
           rows,
           columns: 12,
           headers: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
-          title: anchor.year - 1 + ' - ' + anchor.year + ' 年（一年一行）',
+          title: anchor.year + ' 年',
         };
       }
       const map = {};
