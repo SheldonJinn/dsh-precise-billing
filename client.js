@@ -71,8 +71,8 @@ window.__ModuleLoader__.load({
       inherit: '跟随界面',
       yahei: '微软雅黑',
       system: '系统界面字体',
-      mono: '等宽（Consolas）',
-      serif: '衬线（Georgia）',
+      mono: '等宽',
+      serif: '衬线',
     };
 
     const PEAK_COLOR = '#e07f0a';
