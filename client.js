@@ -1530,7 +1530,7 @@ window.__ModuleLoader__.load({
         const rows = [...years].filter((year) => Number.isFinite(year)).sort((a, b) => a - b).map((year) => {
           const cells = [];
           for (let month = 1; month <= 12; month += 1) {
-            const cell = emptyCell(year + '-' + String(month).padStart(2, '0'), '', '');
+            const cell = emptyCell(year + '-' + String(month).padStart(2, '0'), month + ' 月', '');
             for (let d = 1; d <= new Date(year, month, 0).getDate(); d += 1) {
               const dateKey = year + '-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
               const day = byDate[dateKey];
@@ -1651,8 +1651,9 @@ window.__ModuleLoader__.load({
           onClick: (event) => setDetail({ cell, x: event.clientX, y: event.clientY }),
           style: {
             minWidth: 0,
-            minHeight: big ? 104 : mini ? 74 : 62,
-            padding: big ? '11px 13px' : mini ? '7px 8px' : '7px 9px',
+            height: big ? 116 : mini ? 96 : 104,
+            boxSizing: 'border-box',
+            padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
             border: isToday ? '1.5px solid #2f6fed' : '1px solid rgba(0,0,0,.06)',
             background: heat,
@@ -1670,7 +1671,7 @@ window.__ModuleLoader__.load({
                 h('span', { style: { fontSize: big ? 13.5 : mini ? 9.5 : 10.5, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)' } }, cell.label),
                 h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, cell.sub))
             : null,
-          h('div', { style: { fontSize: big ? 18 : mini ? 11 : 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.15 } },
+          h('div', { style: { fontSize: big ? 18 : mini ? 14 : 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
             empty ? '—' : fmtNumberCn(cell.tokens)),
           h('div', { style: { fontSize: big ? 12.5 : mini ? 9.5 : 10.5, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)' } },
             empty ? '' : money2(cell.cost)),
@@ -1679,7 +1680,7 @@ window.__ModuleLoader__.load({
             splitChip('闲', cell.offPeakCost, OFF_COLOR, big ? 10 : mini ? 8.5 : 9)));
       };
 
-      const emptyTile = (key, minHeight) => h('div', { key, style: { minHeight, borderRadius: 10, border: '1px dashed rgba(0,0,0,.07)' } });
+      const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, border: '1px dashed rgba(0,0,0,.07)' } });
 
       const dimPills = h('div', { style: { display: 'inline-flex', padding: 2, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.04))' } },
         [['day', '按日'], ['week', '按周'], ['month', '按月'], ['year', '按年']].map(([value, label]) => h('button', {
@@ -1715,7 +1716,23 @@ window.__ModuleLoader__.load({
 
       const weekday = ['一', '二', '三', '四', '五', '六', '日'];
       let gridBody = null;
-      if (calendar.matrix) {
+      if (calendar.matrix && dim === 'year') {
+        gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+          calendar.rows.map((row, rowIndex) => h('div', {
+            key: 'year-' + row.label,
+            style: {
+              border: '1px solid rgba(0,0,0,.06)',
+              borderRadius: 12,
+              padding: '12px 14px',
+              background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.015)' : 'transparent',
+            },
+          },
+            h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 } },
+              h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
+              h('span', { style: { fontSize: 10.5, color: MUTED } }, '12 个月')),
+            h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8 } },
+              row.cells.map((cell, index) => (cell ? cellCard(cell, 'year') : emptyTile('y-' + row.label + '-' + index, 96)))))));
+      } else if (calendar.matrix) {
         gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
           h('div', { style: { display: 'flex', gap: 6, padding: '0 8px 2px' } },
             h('div', { style: { width: 64, flex: '0 0 64px' } }),
