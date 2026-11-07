@@ -624,7 +624,7 @@ function closeIcon(size = 14) {
       return usageOpen;
     }
 
-    let restartState = { open: false, phase: 'confirm', logPath: '', error: '' };
+    let restartState = { open: false, phase: 'confirm', logPath: '', error: '', toast: '' };
     const restartListeners = new Set();
     function setRestartState(patch) {
       restartState = { ...restartState, ...patch };
@@ -638,6 +638,38 @@ function closeIcon(size = 14) {
         return () => restartListeners.delete(fn);
       }, []);
       return restartState;
+    }
+    function copyRestartLog(text) {
+      if (!text) return false;
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch { /* fall through */ }
+      try {
+        if (typeof document === 'undefined') return false;
+        const input = document.createElement('textarea');
+        input.value = text;
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
+        return true;
+      } catch { return false; }
+    }
+    function showRestartToast(text) {
+      setRestartState({ toast: text });
+      setTimeout(() => {
+        if (restartState.toast === text) setRestartState({ toast: '' });
+      }, 2400);
+    }
+    function closeRestartWithLog() {
+      const copied = copyRestartLog(restartState.logPath);
+      closeRestart();
+      if (copied) showRestartToast('日志路径已复制到剪贴板');
     }
     function askRestart() {
       setRestartState({ open: true, phase: 'confirm', logPath: '', error: '' });
@@ -2162,6 +2194,8 @@ function closeIcon(size = 14) {
         '.pb-rst-btn.primary:hover{background:#255fd6}',
         '.pb-rst-track{height:4px;border-radius:999px;background:rgba(47,111,237,.14);overflow:hidden;margin-top:14px}',
         '.pb-rst-fill{height:100%;width:8%;border-radius:999px;background:#2f6fed;animation:pb-rst-progress 9s cubic-bezier(.15,.7,.25,1) forwards}',
+        '.pb-rst-toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:2147483001;background:rgba(20,22,28,.92);color:#fff;font-size:12px;line-height:1;padding:9px 16px;border-radius:999px;box-shadow:0 10px 26px rgba(0,0,0,.24);animation:pb-rst-toast-in .18s ease}',
+        '@keyframes pb-rst-toast-in{from{opacity:0;transform:translateX(-50%) translateY(4px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}',
         '.pb-rst-log{margin-top:10px;font-size:10.5px;line-height:1.6;color:var(--dsw-alias-label-secondary,#777);word-break:break-all;font-family:ui-monospace,Consolas,monospace}',
         '@keyframes pb-rst-fade{from{opacity:0}to{opacity:1}}',
         '@keyframes pb-rst-in{from{opacity:0;transform:translateY(4px) scale(.985)}to{opacity:1;transform:none}}',
@@ -2470,7 +2504,7 @@ function closeIcon(size = 14) {
         actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
         actions.push(h('button', { key: 'go', type: 'button', className: 'pb-rst-btn primary', onClick: confirmRestart }, '立即重启'));
       } else {
-        actions.push(h('button', { key: 'close', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, phase === 'running' ? '收起' : '知道了'));
+        actions.push(h('button', { key: 'close', type: 'button', className: 'pb-rst-btn', onClick: closeRestartWithLog }, phase === 'running' ? '收起' : '知道了'));
       }
       return ReactDOM.createPortal(
         h('div', { className: 'pb-rst-backdrop' },
@@ -2482,6 +2516,15 @@ function closeIcon(size = 14) {
             phase === 'running' ? h('div', { className: 'pb-rst-track' }, h('div', { className: 'pb-rst-fill' })) : null,
             (phase === 'running' || phase === 'timeout') && state.logPath ? h('div', { className: 'pb-rst-log' }, '日志：' + state.logPath) : null,
             h('div', { className: 'pb-rst-actions' }, actions))),
+        document.body,
+      );
+    }
+
+    function RestartToast() {
+      const state = useRestartState();
+      if (!state.toast || typeof document === 'undefined' || !ReactDOM || typeof ReactDOM.createPortal !== 'function') return null;
+      return ReactDOM.createPortal(
+        h('div', { className: 'pb-rst-toast' }, state.toast),
         document.body,
       );
     }
@@ -2500,7 +2543,7 @@ function closeIcon(size = 14) {
       const settings = { ...DEFAULT_SETTINGS, ...(data?.settings || {}) };
       const host = h(UsageHost, { account: accountState.account });
       if (settings.sidebar === false) return host;
-      return h(React.Fragment, null, host, buildSidebar(settings, data?.fontFamilies || {}, data, accountState.account, now, props.wide !== false), h(RestartDialog));
+      return h(React.Fragment, null, host, buildSidebar(settings, data?.fontFamilies || {}, data, accountState.account, now, props.wide !== false), h(RestartDialog), h(RestartToast));
     }
 
     /** ------------------------------------------------------------ 设置页 -- */
