@@ -1970,26 +1970,32 @@ function closeIcon(size = 14) {
             },
               h('span', { style: { color: color || MUTED } }, label),
               h('span', { style: { fontWeight: 700, color: color || 'var(--dsw-alias-label-primary, #111)', fontVariantNumeric: 'tabular-nums' } }, value));
-            const bars = h('div', {
-              style: { display: 'flex', alignItems: 'flex-end', gap: 4, height: 96, flex: '1 1 auto', minWidth: 0 },
+            const BAR_HEIGHT = 84;
+        const monthNodes = months.map((cell) => {
+          const percent = cell.cost > 0 ? Math.max(3, (cell.cost / maxCost) * 100) : 2;
+          const peakShare = cell.cost > 0 ? Math.max(0, Math.min(100, (cell.peakCost / cell.cost) * 100)) : 0;
+          return h('div', {
+            key: cell.key,
+            style: { flex: '1 1 0', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', minWidth: 0, cursor: 'pointer' },
+            onMouseEnter: (event) => setDetail({ cell, x: event.clientX, y: event.clientY }),
+            onMouseLeave: () => setDetail(null),
+          },
+            h('div', {
+              style: {
+                width: '62%', maxWidth: 16, height: percent + '%', display: 'flex', flexDirection: 'column',
+                borderRadius: '3px 3px 0 0', overflow: 'hidden',
+                background: 'rgba(0,0,0,.06)',
+                boxShadow: '0 1px 2px rgba(0,0,0,.22), inset 0 0 0 1px rgba(0,0,0,.05)',
+              },
             },
-              months.map((cell) => {
-                const percent = cell.cost > 0 ? Math.max(3, (cell.cost / maxCost) * 100) : 2;
-                return h('div', {
-                  key: cell.key,
-                  title: cell.label + ' ' + money2(cell.cost),
-                  style: { flex: '1 1 0', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 3, minWidth: 0 },
-                },
-                  h('div', {
-                    style: {
-                      width: '62%', maxWidth: 16, height: percent + '%',
-                      background: cell.cost > 0 ? 'rgba(47,111,237,.62)' : 'rgba(0,0,0,.06)',
-                      borderRadius: '3px 3px 0 0',
-                    },
-                  }),
-                  h('span', { style: { fontSize: 9, color: MUTED, whiteSpace: 'nowrap' } }, Number(cell.key.slice(5)) + '月'));
-              }));
-            return h('div', {
+              cell.cost > 0 && cell.peakCost > 0 ? h('div', { style: { height: peakShare + '%', background: PEAK_COLOR } }) : null,
+              cell.cost > 0 ? h('div', { style: { flex: '1 1 auto', background: OFF_COLOR } }) : null));
+        });
+        const bars = h('div', { style: { flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+          h('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 4, height: BAR_HEIGHT, borderBottom: '1px solid rgba(0,0,0,.14)' } }, monthNodes),
+          h('div', { style: { display: 'flex', gap: 4 } },
+            months.map((cell) => h('span', { key: 'm-' + cell.key, style: { flex: '1 1 0', textAlign: 'center', fontSize: 9, color: MUTED, whiteSpace: 'nowrap' } }, Number(cell.key.slice(5)) + '月'))));
+        return h('div', {
               key: 'year-' + row.label,
               onMouseEnter: () => setHoverKey('year-' + row.label),
               onMouseLeave: () => setHoverKey(null),
@@ -2002,7 +2008,7 @@ function closeIcon(size = 14) {
                 transition: 'background .14s ease, border-color .14s ease, opacity .14s ease',
               },
             },
-              h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' } },
+              h('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' } },
                 h('div', { style: { width: 190, flex: '0 0 190px', display: 'flex', flexDirection: 'column', gap: 6 } },
                   h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 } },
                     h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
