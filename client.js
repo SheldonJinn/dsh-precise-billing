@@ -2360,7 +2360,7 @@ function closeIcon(size = 14) {
         className: 'pb-side-actions',
         style: { position: 'absolute', top: -16, right: 0, display: 'flex', alignItems: 'center', gap: 2, zIndex: 2 },
       },
-        actionButton('热重启 DSH', restartDsh, restartIcon(12)),
+        actionButton('热重启 DSH', restartDsh, restartIcon(14)),
         actionButton('用量看板', () => setUsageOpen(true), chartIcon(12)),
         actionButton('打开精确计费设置', () => openBillingSettings(), gearIcon(12)));
 
