@@ -1750,7 +1750,7 @@ window.__ModuleLoader__.load({
               border: '1px solid rgba(0,0,0,.06)',
               borderRadius: 12,
               padding: '12px 14px',
-              background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.015)' : 'transparent',
+              background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.03)' : 'rgba(255,255,255,.92)',
             },
           },
             h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 } },
@@ -1771,7 +1771,7 @@ window.__ModuleLoader__.load({
             style: {
               display: 'flex', gap: 6, padding: '5px 8px', alignItems: 'stretch',
               borderRadius: 8,
-              background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.02)' : 'transparent',
+              background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.035)' : 'rgba(255,255,255,.92)',
             },
           },
             h('div', { style: { width: 64, flex: '0 0 64px', fontSize: 14, color: 'var(--dsw-alias-label-primary, #111)', display: 'flex', alignItems: 'center', fontWeight: 700 } }, row.label),
@@ -1899,7 +1899,7 @@ window.__ModuleLoader__.load({
       return h('div', { style: { display: 'flex', flexDirection: 'column', minHeight: 0, flex: '1 1 auto' } },
         head,
         h('div', { style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overflowX: 'hidden', marginTop: 8 } },
-          h('div', { style: { background: 'rgba(0,0,0,.045)', borderRadius: 12, padding: 10 } }, gridBody)),
+          h('div', { style: { background: 'rgba(0,0,0,.03)', borderRadius: 12, padding: 10 } }, gridBody)),
         pop);
     }
 
