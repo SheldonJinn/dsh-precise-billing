@@ -2318,8 +2318,6 @@ function closeIcon(size = 14) {
       }
 
       const logged = account?.logged === true;
-      const barHidden = draft.position === 'hidden';
-      const sidebarHidden = draft.sidebar === false;
       const monthCostText = logged ? money(Number(account.monthCost)) : '—';
       const balanceText = logged && Number.isFinite(Number(account.balance)) ? money(Number(account.balance)) : '—';
 
@@ -2594,6 +2592,8 @@ function closeIcon(size = 14) {
       const officialToday = Number(account?.todayCost ?? 0);
       const localToday = Number(data?.today?.cost ?? 0);
       const logged = account?.logged === true;
+      const barHidden = draft.position === 'hidden';
+      const sidebarHidden = draft.sidebar === false;
 
       return h('div', { className: 'pb-settings', style: { padding: '2px 2px 24px', maxWidth: 760 } },
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 } },
