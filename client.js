@@ -289,6 +289,29 @@ window.__ModuleLoader__.load({
     h('rect', { x: 13.5, y: 13.5, width: 7.5, height: 7.5, rx: 1.8, fill: 'currentColor' }));
 }
 
+function restartIcon(size = 12) {
+  return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
+    h('path', { d: 'M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2, strokeLinecap: 'round', strokeLinejoin: 'round' }));
+}
+
+async function restartDsh() {
+  try {
+    if (typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm('确定要热重启 DSH 吗？\n\n窗口会关闭并自动重新打开，当前对话会保留。')) return;
+    const at = Date.now();
+    const res = await fetch('/dsh-hot-restart/restart', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json', 'x-dsh-hot-restart': '1' },
+      body: JSON.stringify({ at, ua: typeof navigator !== 'undefined' ? navigator.userAgent : '' }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload.ok !== true) throw new Error(payload.error || ('HTTP ' + res.status));
+  } catch (error) {
+    const text = '热重启失败：' + String((error && error.message) || error);
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert(text);
+  }
+}
+
 function closeIcon(size = 14) {
       return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
         h('path', { d: 'M6 6L18 18M18 6L6 18', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' }));
@@ -2334,6 +2357,7 @@ function closeIcon(size = 14) {
         className: 'pb-side-actions',
         style: { position: 'absolute', top: -16, right: 0, display: 'flex', alignItems: 'center', gap: 2, zIndex: 2 },
       },
+        actionButton('热重启 DSH', restartDsh, restartIcon(12)),
         actionButton('用量看板', () => setUsageOpen(true), chartIcon(12)),
         actionButton('打开精确计费设置', () => openBillingSettings(), gearIcon(12)));
 
