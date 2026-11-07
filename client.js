@@ -2012,14 +2012,8 @@ function closeIcon(size = 14) {
             },
               h('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' } },
                 h('div', { style: { width: 190, flex: '0 0 190px', display: 'flex', flexDirection: 'column', gap: 6 } },
-                  h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 } },
-                    h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
-                      h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
-                      row.year === Number(todayKey.slice(0, 4))
-                        ? h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: '#c0392b', fontWeight: 700 } },
-                            h('i', { className: 'pb-today-badge', style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' } }),
-                            '今年')
-                        : null),
+                  h('div', { style: { position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 } },
+                    h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
                     h('button', {
                       type: 'button',
                       title: expanded ? '收起月份' : '展开月份',
@@ -2029,6 +2023,11 @@ function closeIcon(size = 14) {
                         background: 'transparent', cursor: 'pointer', color: 'inherit', fontSize: 14, lineHeight: 1,
                       },
                     }, expanded ? '−' : '+')),
+                  row.year === Number(todayKey.slice(0, 4))
+                    ? h('span', { style: { position: 'absolute', right: 34, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, lineHeight: 1.45, color: '#b42318', fontWeight: 700, whiteSpace: 'nowrap' } },
+                        h('i', { className: 'pb-today-badge', style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' } }),
+                        '今年')
+                    : null,
                   metricRow('Token', fmtNumberCn(sum.tokens)),
                   metricRow('消费', money2(sum.cost)),
                   metricRow('峰时', money2(sum.peak), PEAK_COLOR),
