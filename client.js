@@ -297,23 +297,6 @@ function restartIcon(size = 12) {
     }));
 }
 
-async function restartDsh() {
-  try {
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm('确定要热重启 DSH 吗？\n\n窗口会关闭并自动重新打开，当前对话会保留。')) return;
-    const res = await fetch('/api/precise-billing/restart', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'content-type': 'application/json' },
-      body: '{}',
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok || payload.ok !== true) throw new Error(payload.error || ('HTTP ' + res.status));
-  } catch (error) {
-    const text = '热重启失败：' + String((error && error.message) || error);
-    if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert(text);
-  }
-}
-
 function closeIcon(size = 14) {
       return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
         h('path', { d: 'M6 6L18 18M18 6L6 18', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' }));
@@ -639,6 +622,47 @@ function closeIcon(size = 14) {
         return () => usageListeners.delete(fn);
       }, []);
       return usageOpen;
+    }
+
+    let restartState = { open: false, phase: 'confirm', logPath: '', error: '' };
+    const restartListeners = new Set();
+    function setRestartState(patch) {
+      restartState = { ...restartState, ...patch };
+      for (const fn of restartListeners) fn();
+    }
+    function useRestartState() {
+      const [, force] = React.useState(0);
+      React.useEffect(() => {
+        const fn = () => force((x) => x + 1);
+        restartListeners.add(fn);
+        return () => restartListeners.delete(fn);
+      }, []);
+      return restartState;
+    }
+    function askRestart() {
+      setRestartState({ open: true, phase: 'confirm', logPath: '', error: '' });
+    }
+    function closeRestart() {
+      setRestartState({ open: false });
+    }
+    async function confirmRestart() {
+      setRestartState({ phase: 'running', error: '' });
+      try {
+        const res = await fetch('/api/precise-billing/restart', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: '{}',
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || payload.ok !== true) throw new Error(payload.error || ('HTTP ' + res.status));
+        setRestartState({ logPath: payload.logPath || '' });
+        setTimeout(() => {
+          if (restartState.open && restartState.phase === 'running') setRestartState({ phase: 'timeout' });
+        }, 20000);
+      } catch (error) {
+        setRestartState({ phase: 'error', error: String((error && error.message) || error) });
+      }
     }
 
     function isoDate(date) {
@@ -2127,6 +2151,22 @@ function closeIcon(size = 14) {
         '.pb-settings button:hover{background:rgba(47,111,237,.12) !important;border-color:rgba(47,111,237,.38) !important}',
         '@keyframes pb-toast-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.94)}8%{opacity:.75;transform:translate(-50%,-50%) scale(1)}88%{opacity:.75;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}',
         '.pb-toast{animation:pb-toast-pop 2.2s ease forwards}',
+        '.pb-rst-backdrop{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(23,28,38,.34);backdrop-filter:blur(3px);animation:pb-rst-fade .16s ease}',
+        '.pb-rst-card{width:348px;max-width:calc(100vw - 32px);background:var(--dsw-alias-bg-layer-1,#fff);border:1px solid rgba(0,0,0,.09);border-radius:14px;box-shadow:0 28px 70px rgba(15,23,42,.24);padding:20px 20px 14px;color:var(--dsw-alias-label-primary,#111);font-family:inherit;animation:pb-rst-in .18s cubic-bezier(.2,.8,.2,1)}',
+        '.pb-rst-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:650;letter-spacing:.2px}',
+        '.pb-rst-body{margin-top:8px;font-size:12.5px;line-height:1.7;color:var(--dsw-alias-label-secondary,#666)}',
+        '.pb-rst-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}',
+        '.pb-rst-btn{font-size:12.5px;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid rgba(0,0,0,.16);background:transparent;color:inherit}',
+        '.pb-rst-btn:hover{background:rgba(0,0,0,.04)}',
+        '.pb-rst-btn.primary{background:#2f6fed;border-color:#2f6fed;color:#fff}',
+        '.pb-rst-btn.primary:hover{background:#255fd6}',
+        '.pb-rst-track{height:4px;border-radius:999px;background:rgba(47,111,237,.14);overflow:hidden;margin-top:14px}',
+        '.pb-rst-fill{height:100%;width:8%;border-radius:999px;background:#2f6fed;animation:pb-rst-progress 9s cubic-bezier(.15,.7,.25,1) forwards}',
+        '.pb-rst-log{margin-top:10px;font-size:10.5px;line-height:1.6;color:var(--dsw-alias-label-secondary,#777);word-break:break-all;font-family:ui-monospace,Consolas,monospace}',
+        '@keyframes pb-rst-fade{from{opacity:0}to{opacity:1}}',
+        '@keyframes pb-rst-in{from{opacity:0;transform:translateY(4px) scale(.985)}to{opacity:1;transform:none}}',
+        '@keyframes pb-rst-progress{0%{width:8%}55%{width:64%}100%{width:92%}}',
+        '@media (prefers-reduced-motion: reduce){.pb-rst-backdrop,.pb-rst-card,.pb-rst-fill{animation:none!important}}',
         '.pb-settings .pb-seg{border-color:rgba(0,0,0,.22) !important;background:transparent !important}',
         '.pb-settings .pb-seg button{border:none !important;border-radius:0 !important;background:transparent !important;color:var(--dsw-alias-label-primary,#111) !important}',
         '.pb-settings .pb-seg button:hover{background:rgba(47,111,237,.12) !important}',
@@ -2359,7 +2399,7 @@ function closeIcon(size = 14) {
         className: 'pb-side-actions',
         style: { position: 'absolute', top: -16, right: 0, display: 'flex', alignItems: 'center', gap: 2, zIndex: 2 },
       },
-        actionButton('热重启 DSH', restartDsh, restartIcon(14)),
+        actionButton('热重启 DSH', askRestart, restartIcon(14)),
         actionButton('用量看板', () => setUsageOpen(true), chartIcon(12)),
         actionButton('打开精确计费设置', () => openBillingSettings(), gearIcon(12)));
 
@@ -2407,6 +2447,45 @@ function closeIcon(size = 14) {
       return h('div', { className: 'pb-side-card', title, style: { ...base, gap: 2, padding: '2px 2px 4px' } }, top, barNode, infoNode, detailsNode, actionsNode);
     }
 
+    function RestartDialog() {
+      const state = useRestartState();
+      React.useEffect(() => {
+        if (!state.open) return undefined;
+        const onKey = (event) => { if (event.key === 'Escape') closeRestart(); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+      }, [state.open]);
+      if (!state.open || typeof document === 'undefined' || !ReactDOM || typeof ReactDOM.createPortal !== 'function') return null;
+      const phase = state.phase;
+      const title = phase === 'running' ? '正在热重启' : phase === 'timeout' ? '还没自动重开' : phase === 'error' ? '热重启没有发起' : '热重启 DSH';
+      const lead = phase === 'running'
+        ? '窗口即将关闭，并自动重新打开。请稍候，不要重复操作。'
+        : phase === 'timeout'
+          ? '重启助手可能被安全软件拦截，或当前 DSH 是手动启动的。请手动关闭窗口后重新打开。'
+          : phase === 'error'
+            ? state.error
+            : '窗口会关闭并自动重新打开，当前会话与对话记录都会保留。';
+      const actions = [];
+      if (phase === 'confirm') {
+        actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
+        actions.push(h('button', { key: 'go', type: 'button', className: 'pb-rst-btn primary', onClick: confirmRestart }, '立即重启'));
+      } else {
+        actions.push(h('button', { key: 'close', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, phase === 'running' ? '收起' : '知道了'));
+      }
+      return ReactDOM.createPortal(
+        h('div', { className: 'pb-rst-backdrop' },
+          h('div', { className: 'pb-rst-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+            h('div', { className: 'pb-rst-title' },
+              h('span', { style: { color: '#2f6fed', display: 'inline-flex' } }, restartIcon(15)),
+              title),
+            h('div', { className: 'pb-rst-body' }, lead),
+            phase === 'running' ? h('div', { className: 'pb-rst-track' }, h('div', { className: 'pb-rst-fill' })) : null,
+            (phase === 'running' || phase === 'timeout') && state.logPath ? h('div', { className: 'pb-rst-log' }, '日志：' + state.logPath) : null,
+            h('div', { className: 'pb-rst-actions' }, actions))),
+        document.body,
+      );
+    }
+
     function SidebarCard(props) {
       props = props || {};
       const state = useSummary(undefined, 'sidebarPollMs');
@@ -2421,7 +2500,7 @@ function closeIcon(size = 14) {
       const settings = { ...DEFAULT_SETTINGS, ...(data?.settings || {}) };
       const host = h(UsageHost, { account: accountState.account });
       if (settings.sidebar === false) return host;
-      return h(React.Fragment, null, host, buildSidebar(settings, data?.fontFamilies || {}, data, accountState.account, now, props.wide !== false));
+      return h(React.Fragment, null, host, buildSidebar(settings, data?.fontFamilies || {}, data, accountState.account, now, props.wide !== false), h(RestartDialog));
     }
 
     /** ------------------------------------------------------------ 设置页 -- */

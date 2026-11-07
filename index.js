@@ -1296,22 +1296,48 @@ function scheduleHotRestart() {
   if (!exe) throw new Error('找不到 DeepSeek Harness 可执行文件');
   const dir = os.tmpdir();
   const stamp = Date.now();
+  const logPath = path.join(dir, 'pb-restart-' + stamp + '.log');
   const script = path.join(dir, 'pb-restart-' + stamp + '.ps1');
   const wrapper = path.join(dir, 'pb-restart-' + stamp + '.vbs');
+
+  // 环境快照：把宿主启动时的 DSH_* 与代理变量注入重启后的进程。
+  const env = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!value) continue;
+    if (/^DSH_/i.test(key) || /^(https?_proxy|all_proxy|no_proxy)$/i.test(key)) env[key] = value;
+  }
+  const envLines = Object.entries(env).map(([key, value]) => "$env:" + key + " = '" + String(value).replace(/'/g, "''") + "'");
+  const logStatement = (text) => "$line = '" + text.replace(/'/g, "''") + "'; Add-Content -LiteralPath '" + logPath.replace(/'/g, "''") + "' -Value ((Get-Date).ToString('HH:mm:ss') + ' ' + $line)";
   const quoted = "'" + exe.replace(/'/g, "''") + "'";
+
   fs.writeFileSync(script, [
+    logStatement('helper started'),
     'Start-Sleep -Milliseconds 1200',
+    ...envLines,
+    logStatement('env keys injected: ' + Object.keys(env).length),
+    logStatement('stopping DeepSeek Harness'),
     "Get-Process -Name 'DeepSeek Harness' -ErrorAction SilentlyContinue | Stop-Process -Force",
     'Start-Sleep -Milliseconds 3500',
+    logStatement('relaunching'),
     'Start-Process -FilePath ' + quoted + ' -WindowStyle Maximized',
+    logStatement('relaunch issued'),
   ].join('\r\n'), 'utf8');
   fs.writeFileSync(wrapper, [
     'Set sh = CreateObject("WScript.Shell")',
     'sh.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""' + script + '""", 0, False',
   ].join('\r\n'), 'utf8');
+
+  const checks = {
+    exe,
+    tempWritable: (() => { try { fs.accessSync(dir, fs.constants.W_OK); return true; } catch { return false; } })(),
+    envKeys: Object.keys(env).length,
+    pid: process.pid,
+    logPath,
+  };
+  fs.appendFileSync(logPath, new Date().toISOString() + ' requested by pid ' + process.pid + ', env keys ' + checks.envKeys + '\r\n', 'utf8');
   const child = spawn('explorer.exe', [wrapper], { detached: true, stdio: 'ignore', windowsHide: true });
   child.unref();
-  return { exe, at: stamp };
+  return { exe, at: stamp, logPath, checks };
 }
 
 export function apply(ctx) {
@@ -1353,7 +1379,7 @@ export function apply(ctx) {
       try {
         const info = scheduleHotRestart();
         lastRestartAt = Date.now();
-        sendJson(res, 200, { ok: true, exe: info.exe });
+        sendJson(res, 200, { ok: true, exe: info.exe, logPath: info.logPath, checks: info.checks });
       } catch (error) {
         sendJson(res, 500, { ok: false, error: String((error && error.message) || error) });
       }
