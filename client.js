@@ -1660,8 +1660,7 @@ window.__ModuleLoader__.load({
         const big = variant === 'month';
         const mini = variant === 'year';
         const level = levelOf(cell.tokens);
-        const heatColors = ['#ffffff', '#f3f7ff', '#e7f0fe', '#d9e7fd', '#c8dbfb'];
-        const heat = empty ? 'transparent' : heatColors[level];
+        const heat = isToday ? 'rgba(47,111,237,.10)' : 'transparent';
         const title = (cell.label || cell.sub ? (cell.label + ' ' + (cell.sub || '')).trim() + '\n' : '') +
           'Tokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次\n' +
           '总额 ' + money2(cell.cost) + '（峰时 ' + money2(cell.peakCost) + ' / 闲时 ' + money2(cell.offPeakCost) + '）';
@@ -1678,7 +1677,7 @@ window.__ModuleLoader__.load({
             boxSizing: 'border-box',
             padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
-            border: isToday ? '1.5px solid #2f6fed' : empty ? '1px solid rgba(0,0,0,.09)' : '1px solid rgba(47,111,237,.14)',
+            border: isToday ? '1.5px solid #2f6fed' : '1px solid rgba(0,0,0,.08)',
             background: heat,
             boxShadow: hoverKey === cell.key ? '0 6px 16px rgba(0,0,0,.10)' : 'none',
             transform: hoverKey === cell.key ? 'translateY(-1px)' : 'none',
@@ -1707,7 +1706,7 @@ window.__ModuleLoader__.load({
             splitRow('闲时', cell.offPeakCost, OFF_COLOR, big ? 10.5 : mini ? 9.5 : 10)));
       };
 
-      const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, background: 'rgba(0,0,0,.02)', border: '1px solid rgba(0,0,0,.07)' } });
+      const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, background: 'transparent', border: '1px dashed rgba(0,0,0,.10)' } });
 
       const dimPills = h('div', { style: { display: 'inline-flex', padding: 2, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.04))' } },
         [['day', '按日'], ['week', '按周'], ['month', '按月'], ['year', '按年']].map(([value, label]) => h('button', {
@@ -1785,7 +1784,7 @@ window.__ModuleLoader__.load({
                 border: '1px solid rgba(0,0,0,.07)',
                 borderRadius: 12,
                 padding: '12px 14px',
-                background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.02)' : 'rgba(255,255,255,.92)',
+                background: 'transparent',
               },
             },
               h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' } },
@@ -1829,7 +1828,7 @@ window.__ModuleLoader__.load({
             style: {
               display: 'flex', gap: 6, padding: '5px 8px', alignItems: 'stretch',
               borderRadius: 8,
-              background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.035)' : 'rgba(255,255,255,.92)',
+              background: 'transparent',
             },
           },
             h('div', { style: { width: 52, flex: '0 0 52px', fontSize: 13, color: 'var(--dsw-alias-label-primary, #111)', display: 'flex', alignItems: 'center', fontWeight: 700 } }, row.label),
@@ -1957,7 +1956,7 @@ window.__ModuleLoader__.load({
       return h('div', { style: { display: 'flex', flexDirection: 'column', minHeight: 0, flex: '1 1 auto' } },
         head,
         h('div', { style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overflowX: 'hidden', marginTop: 8 } },
-          h('div', { style: { background: dim === 'year' ? 'rgba(0,0,0,.03)' : '#ffffff', borderRadius: 12, padding: 10 } }, gridBody)),
+          h('div', { style: { background: 'transparent', borderRadius: 12, padding: 10 } }, gridBody)),
         pop);
     }
 
