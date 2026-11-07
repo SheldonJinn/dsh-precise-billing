@@ -1690,9 +1690,9 @@ window.__ModuleLoader__.load({
           },
         },
           (cell.label || cell.sub)
-            ? h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, minWidth: 0 } },
-                h('span', { style: { fontSize: big ? 17 : mini ? 13 : 16, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)' } }, cell.label),
-                h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, cell.sub))
+            ? h('div', { style: { display: 'flex', flexDirection: dim === 'week' ? 'column' : 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: dim === 'week' ? 1 : 4, minWidth: 0 } },
+                h('span', { style: { fontSize: big ? 17 : mini ? 13 : 16, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)', whiteSpace: 'nowrap' } }, cell.label),
+                h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap' } }, cell.sub))
             : null,
           h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 0 } },
             h('span', { style: { fontSize: big ? 11 : mini ? 9.5 : 11, color: MUTED, whiteSpace: 'nowrap', flex: '0 0 auto' } }, 'Token'),
@@ -1819,7 +1819,7 @@ window.__ModuleLoader__.load({
       } else if (calendar.matrix) {
         gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
           h('div', { style: { display: 'flex', gap: 6, padding: '0 8px 2px' } },
-            h('div', { style: { width: 64, flex: '0 0 64px' } }),
+            h('div', { style: { width: 52, flex: '0 0 52px' } }),
             Array.from({ length: calendar.columns }, (_, index) => h('div', {
               key: 'head-' + index,
               style: { flex: '1 1 0', fontSize: 13, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', fontWeight: 700 },
@@ -1832,7 +1832,7 @@ window.__ModuleLoader__.load({
               background: rowIndex % 2 === 1 ? 'rgba(0,0,0,.035)' : 'rgba(255,255,255,.92)',
             },
           },
-            h('div', { style: { width: 64, flex: '0 0 64px', fontSize: 14, color: 'var(--dsw-alias-label-primary, #111)', display: 'flex', alignItems: 'center', fontWeight: 700 } }, row.label),
+            h('div', { style: { width: 52, flex: '0 0 52px', fontSize: 13, color: 'var(--dsw-alias-label-primary, #111)', display: 'flex', alignItems: 'center', fontWeight: 700 } }, row.label),
             Array.from({ length: calendar.columns }, (_, index) => {
               const cell = row.cells[index];
               return h('div', { key: 'cell-' + row.label + '-' + index, style: { flex: '1 1 0', minWidth: 0 } },
