@@ -1632,6 +1632,14 @@ window.__ModuleLoader__.load({
         h('i', { style: { width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flex: '0 0 auto' } }),
         label + ' ' + money2(value));
 
+      const splitRow = (label, value, color, size) => h('div', {
+        style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, minWidth: 0 },
+      },
+        h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: size, color: MUTED, whiteSpace: 'nowrap' } },
+          h('i', { style: { width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flex: '0 0 auto' } }),
+          label),
+        h('span', { style: { fontSize: size, color: MUTED, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' } }, money2(value)));
+
       const cellCard = (cell, variant) => {
         const isToday = cell.isToday === true || cell.key === todayKey;
         const empty = !cell.tokens && !cell.cost && !cell.requests;
@@ -1651,7 +1659,7 @@ window.__ModuleLoader__.load({
           onClick: (event) => setDetail({ cell, x: event.clientX, y: event.clientY }),
           style: {
             minWidth: 0,
-            height: big ? 116 : mini ? 96 : 104,
+            height: big ? 128 : mini ? 108 : 118,
             boxSizing: 'border-box',
             padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
@@ -1675,9 +1683,9 @@ window.__ModuleLoader__.load({
             empty ? '—' : fmtNumberCn(cell.tokens)),
           h('div', { style: { fontSize: big ? 12.5 : mini ? 9.5 : 10.5, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)' } },
             empty ? '' : money2(cell.cost)),
-          empty ? null : h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 'auto' } },
-            splitChip('峰', cell.peakCost, PEAK_COLOR, big ? 10 : mini ? 8.5 : 9),
-            splitChip('闲', cell.offPeakCost, OFF_COLOR, big ? 10 : mini ? 8.5 : 9)));
+          empty ? null : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' } },
+            splitRow('峰', cell.peakCost, PEAK_COLOR, big ? 10.5 : mini ? 9.5 : 10),
+            splitRow('闲', cell.offPeakCost, OFF_COLOR, big ? 10.5 : mini ? 9.5 : 10)));
       };
 
       const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, border: '1px dashed rgba(0,0,0,.07)' } });
@@ -1731,7 +1739,7 @@ window.__ModuleLoader__.load({
               h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
               h('span', { style: { fontSize: 10.5, color: MUTED } }, '12 个月')),
             h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8 } },
-              row.cells.map((cell, index) => (cell ? cellCard(cell, 'year') : emptyTile('y-' + row.label + '-' + index, 96)))))));
+              row.cells.map((cell, index) => (cell ? cellCard(cell, 'year') : emptyTile('y-' + row.label + '-' + index, 108)))))));
       } else if (calendar.matrix) {
         gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
           h('div', { style: { display: 'flex', gap: 6, padding: '0 8px 2px' } },
@@ -1752,15 +1760,15 @@ window.__ModuleLoader__.load({
             Array.from({ length: calendar.columns }, (_, index) => {
               const cell = row.cells[index];
               return h('div', { key: 'cell-' + row.label + '-' + index, style: { flex: '1 1 0', minWidth: 0 } },
-                cell ? cellCard(cell, dim === 'year' ? 'year' : 'week') : emptyTile('e-' + row.label + '-' + index, dim === 'year' ? 74 : 62));
+                cell ? cellCard(cell, dim === 'year' ? 'year' : 'week') : emptyTile('e-' + row.label + '-' + index, dim === 'year' ? 108 : 118));
             }))));
       } else if (dim === 'day') {
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 } },
           weekday.map((name) => h('div', { key: 'w-' + name, style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', paddingBottom: 3, fontWeight: 700 } }, name)),
-          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'day') : emptyTile('blank-' + index, 62))));
+          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'day') : emptyTile('blank-' + index, 118))));
       } else {
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 } },
-          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'month') : emptyTile('blank-' + index, 104))));
+          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'month') : emptyTile('blank-' + index, 128))));
       }
 
       const headerRow = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 } },
