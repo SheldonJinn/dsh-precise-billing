@@ -2022,12 +2022,12 @@ function closeIcon(size = 14) {
                         width: 24, height: 24, borderRadius: 8, border: '1px solid rgba(0,0,0,.18)',
                         background: 'transparent', cursor: 'pointer', color: 'inherit', fontSize: 14, lineHeight: 1,
                       },
-                    }, expanded ? '−' : '+')),
-                  row.year === Number(todayKey.slice(0, 4))
-                    ? h('span', { style: { position: 'absolute', right: 34, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, lineHeight: 1.45, color: '#b42318', fontWeight: 700, whiteSpace: 'nowrap' } },
-                        h('i', { className: 'pb-today-badge', style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' } }),
-                        '今年')
-                    : null,
+                    }, expanded ? '−' : '+'),
+                    row.year === Number(todayKey.slice(0, 4))
+                      ? h('span', { style: { position: 'absolute', right: 34, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, lineHeight: 1.45, color: '#b42318', fontWeight: 700, whiteSpace: 'nowrap' } },
+                          h('i', { className: 'pb-today-badge', style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' } }),
+                          '今年')
+                      : null),
                   metricRow('Token', fmtNumberCn(sum.tokens)),
                   metricRow('消费', money2(sum.cost)),
                   metricRow('峰时', money2(sum.peak), PEAK_COLOR),
