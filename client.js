@@ -291,7 +291,10 @@ window.__ModuleLoader__.load({
 
 function restartIcon(size = 12) {
   return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
-    h('path', { d: 'M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2, strokeLinecap: 'round', strokeLinejoin: 'round' }));
+    h('path', {
+      fill: 'currentColor',
+      d: 'M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',
+    }));
 }
 
 async function restartDsh() {
