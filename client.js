@@ -2667,7 +2667,7 @@ function closeIcon(size = 14) {
               h('option', { value: 60000 }, '1 分钟'),
               h('option', { value: 300000 }, '5 分钟'),
               h('option', { value: 600000 }, '10 分钟'))),
-          barHidden ? null : sidebarHidden ? null : h(Field, { label: '预览' },
+          barHidden ? null : h(Field, { label: '预览' },
             h('div', { style: { width: '100%', display: 'flex', justifyContent: 'flex-end', padding: '6px 0' } },
               buildChip(draft, families, data, summary.status, account, {})))),
 
