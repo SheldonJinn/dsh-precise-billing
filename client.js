@@ -731,6 +731,44 @@ window.__ModuleLoader__.load({
       return { ...data, days, localDays, hours, totals, localTotals };
     }
 
+    function dailyOrMonthly(days) {
+      const list = (days || []).slice(-366);
+      if (list.length === 0) return { monthly: false, items: [] };
+      const first = new Date(list[0].date + 'T00:00:00');
+      const last = new Date(list[list.length - 1].date + 'T00:00:00');
+      const span = Math.round((last - first) / 86400000);
+      const monthly = span > 120;
+      const emptySlot = (key, label) => ({ key, label, total: 0, peak: 0, off: 0, requests: 0, tokens: 0, parts: {}, modelTokens: {} });
+      const addDay = (slot, day) => {
+        slot.total += day.cost || 0;
+        slot.peak += day.peakCost || 0;
+        slot.off += day.offPeakCost || 0;
+        slot.requests += day.requests || 0;
+        slot.tokens += usageTotalTokens(day.tokens || {});
+        for (const model of day.models || []) {
+          slot.parts[model.model] = (slot.parts[model.model] || 0) + (model.cost || 0);
+          slot.modelTokens[model.model] = (slot.modelTokens[model.model] || 0) + usageTotalTokens(model.tokens || {});
+        }
+      };
+      if (!monthly) {
+        return {
+          monthly,
+          items: list.map((day) => {
+            const slot = emptySlot(day.date, day.date.slice(5));
+            addDay(slot, day);
+            return slot;
+          }),
+        };
+      }
+      const map = {};
+      for (const day of list) {
+        const key = day.date.slice(0, 7);
+        const slot = map[key] ?? (map[key] = emptySlot(key, Number(key.slice(5)) + '月'));
+        addDay(slot, day);
+      }
+      return { monthly, items: Object.values(map).sort((a, b) => (a.key < b.key ? -1 : 1)) };
+    }
+
     function UsageCostChart({ days, hours, dayKey, singleDay, models }) {
       const names = models || [];
       let series = [];
@@ -763,11 +801,7 @@ window.__ModuleLoader__.load({
         }
         xLabels = ['00:00', '06:00', '12:00', '18:00', '23:00'];
       } else {
-        series = (days || []).slice(-31).map((day) => {
-          const parts = {};
-          for (const model of day.models || []) parts[model.model] = model.cost || 0;
-          return { label: day.date, total: day.cost || 0, parts, peak: day.peakCost || 0, off: day.offPeakCost || 0 };
-        });
+        series = dailyOrMonthly(days).items;
         if (series.length > 0) {
           const middle = series[Math.floor(series.length / 2)].label.slice(5);
           xLabels = [series[0].label.slice(5), middle, series[series.length - 1].label.slice(5)];
@@ -777,7 +811,7 @@ window.__ModuleLoader__.load({
 
       const axisSlots = series.map((item, index) => {
         if (singleDay) return item.label;
-        return item.label.slice(5);
+        return item.label;
       });
 
       const max = Math.max.apply(null, series.map((item) => item.total).concat([0.0001]));
@@ -861,9 +895,9 @@ window.__ModuleLoader__.load({
           labels.push(String(hour).padStart(2, '0') + ':00');
         }
       } else {
-        for (const day of (days || []).slice(-31)) {
-          values.push(day.requests || 0);
-          labels.push(day.date);
+        for (const slot of dailyOrMonthly(days).items) {
+          values.push(slot.requests || 0);
+          labels.push(slot.label);
         }
       }
       if (values.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
@@ -899,7 +933,7 @@ window.__ModuleLoader__.load({
 
       const axisSlots = labels.map((label, index) => {
         if (singleDay) return label;
-        return label.slice(5);
+        return label;
       });
       const xAxis = h('div', { style: { display: 'flex', fontSize: singleDay || labels.length > 10 ? 8 : 9.5, color: MUTED, marginTop: 3 } },
         axisSlots.map((label, index) => h('span', { key: index, style: { flex: '1 1 0', textAlign: 'center', whiteSpace: 'nowrap' } }, label)));
@@ -976,22 +1010,21 @@ window.__ModuleLoader__.load({
           series.push({ label: String(hour).padStart(2, '0') + ':00', total: slot.total, parts: slot.parts });
         }
       } else {
-        series = (days || []).slice(-31).map((day) => {
+        series = dailyOrMonthly(days).items.map((slot) => {
           const parts = {};
           let total = 0;
-          for (const model of day.models || []) {
-            const value = valueOf(model);
-            parts[model.model] = value;
+          for (const [name, cost] of Object.entries(slot.parts)) {
+            const value = metric === 'requests' ? 0 : (slot.modelTokens[name] || 0);
+            parts[name] = value;
             total += value;
           }
-          if (!(day.models || []).length) total = valueOf(day);
-          return { label: day.date, total, parts };
+          return { label: slot.label, total, parts };
         });
       }
       if (series.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
       const axisSlots = series.map((item, index) => {
         if (singleDay) return item.label;
-        return item.label.slice(5);
+        return item.label;
       });
       const max = Math.max.apply(null, series.map((item) => item.total).concat([1]));
       const height = 120;
