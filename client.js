@@ -2551,8 +2551,8 @@ function closeIcon(size = 14) {
       const setCustom = (key, value) => {
         setDraft((prev) => {
           const custom = { ...(prev.custom || {}), [key]: value };
-          if (key === 'b1' && value === false) {
-            for (const dep of CUSTOM_DEPENDENTS) custom[dep] = false;
+          if (key === 'b1') {
+            for (const dep of CUSTOM_DEPENDENTS) custom[dep] = value !== false;
           }
           const keys = ['a1', 'a2', 'a3', 'a4', 'b1', 'b2', 'b3', 'b4', 'c1', 'c2', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6'];
           const active = keys.filter((k) => customIsOn(custom, k)).length;
