@@ -2098,6 +2098,11 @@ function closeIcon(size = 14) {
         '.pb-gear{transition:opacity .15s ease}.pb-gear:hover{opacity:1 !important}',
         '.pb-side-actions{opacity:1;pointer-events:auto;transition:opacity .14s ease}',
         '.pb-side-card:hover .pb-side-actions{opacity:1;pointer-events:auto}',
+        '.pb-settings button{background:rgba(47,111,237,.10) !important;border:1px solid rgba(47,111,237,.28) !important;color:#2f6fed !important}',
+        '.pb-settings button:hover{background:rgba(47,111,237,.18) !important}',
+        '.pb-settings .pb-seg{border-color:rgba(47,111,237,.30) !important;background:rgba(47,111,237,.06) !important}',
+        '.pb-settings .pb-seg button{border:none !important;border-radius:0 !important;background:transparent !important;color:#2f6fed !important}',
+        '.pb-settings .pb-seg button.pb-active{background:#2f6fed !important;color:#fff !important}',
         '.pb-field{transition:background .12s ease;border-radius:4px}.pb-field:hover{background:rgba(0,0,0,.04)}',
         '@keyframes pb-today-pulse{0%,100%{opacity:1}50%{opacity:.5}}',
         '.pb-today-badge{animation:pb-today-pulse 2.8s ease-in-out infinite}',
@@ -2443,9 +2448,10 @@ function closeIcon(size = 14) {
 
     function Segmented({ value, options, onChange }) {
       return h('div', {
+        className: 'pb-seg',
         style: {
           display: 'inline-flex',
-          border: '1px solid rgba(0,0,0,.36)',
+          border: '1px solid rgba(47,111,237,.28)',
           borderRadius: 7,
           overflow: 'hidden',
           background: 'transparent',
@@ -2453,6 +2459,7 @@ function closeIcon(size = 14) {
       }, options.map((option) => h('button', {
         key: option.value,
         type: 'button',
+        className: value === option.value ? 'pb-active' : undefined,
         onClick: () => onChange(option.value),
         style: {
           padding: '5px 11px',
@@ -2585,7 +2592,7 @@ function closeIcon(size = 14) {
       const localToday = Number(data?.today?.cost ?? 0);
       const logged = account?.logged === true;
 
-      return h('div', { style: { padding: '2px 2px 24px', maxWidth: 760 } },
+      return h('div', { className: 'pb-settings', style: { padding: '2px 2px 24px', maxWidth: 760 } },
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 } },
           h('div', null,
             h('h2', { style: { fontSize: 17, margin: '0 0 3px', color: 'var(--dsw-alias-label-primary, #111)' } }, '精确计费'),
