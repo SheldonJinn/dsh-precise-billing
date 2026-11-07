@@ -1342,7 +1342,7 @@ window.__ModuleLoader__.load({
               h('div', { style: usagePanelStyles.cards },
                 h(UsageStatCard, { label: 'Tokens', value: fmtNumberCn(usageTotalTokens(tokens)), hint: '命中率 ' + (hit * 100).toFixed(2) + '%' }),
                 h(UsageStatCard, { label: 'API 请求次数', value: fmtNumberCn(totals.requests) + ' 次', hint: mode === 'official' ? '官方请求统计' : '本地会话统计' }),
-                h(UsageStatCard, { label: '消费金额', value: fmtMoneyCn(totals.cost), hint: '峰 ' + fmtMoneyCn(totals.peakCost) + ' · 闲 ' + fmtMoneyCn(totals.offPeakCost) }),
+                h(UsageStatCard, { label: '消费金额', value: fmtMoneyCn(totals.cost), hint: '峰时 ' + fmtMoneyCn(totals.peakCost) + ' · 闲时 ' + fmtMoneyCn(totals.offPeakCost) }),
                 h(UsageStatCard, { label: '余额', value: balance === undefined ? '—' : fmtMoneyCn(balance), hint: '官方账户余额' })),
               tab === 'trend'
                 ? h('div', null,
@@ -1649,7 +1649,7 @@ window.__ModuleLoader__.load({
         const heat = empty ? 'transparent' : 'rgba(47,111,237,' + [0, 0.035, 0.06, 0.095, 0.14][level] + ')';
         const title = (cell.label || cell.sub ? (cell.label + ' ' + (cell.sub || '')).trim() + '\n' : '') +
           'Tokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次\n' +
-          '总额 ' + money2(cell.cost) + '（峰 ' + money2(cell.peakCost) + ' / 闲 ' + money2(cell.offPeakCost) + '）';
+          '总额 ' + money2(cell.cost) + '（峰时 ' + money2(cell.peakCost) + ' / 闲时 ' + money2(cell.offPeakCost) + '）';
         return h('div', {
           key: cell.key,
           ref: isToday ? weekRef : undefined,
@@ -1684,8 +1684,8 @@ window.__ModuleLoader__.load({
           h('div', { style: { fontSize: big ? 12.5 : mini ? 9.5 : 10.5, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)' } },
             empty ? '' : money2(cell.cost)),
           empty ? null : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' } },
-            splitRow('峰', cell.peakCost, PEAK_COLOR, big ? 10.5 : mini ? 9.5 : 10),
-            splitRow('闲', cell.offPeakCost, OFF_COLOR, big ? 10.5 : mini ? 9.5 : 10)));
+            splitRow('峰时', cell.peakCost, PEAK_COLOR, big ? 10.5 : mini ? 9.5 : 10),
+            splitRow('闲时', cell.offPeakCost, OFF_COLOR, big ? 10.5 : mini ? 9.5 : 10)));
       };
 
       const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, border: '1px dashed rgba(0,0,0,.07)' } });
@@ -1719,8 +1719,8 @@ window.__ModuleLoader__.load({
         h('span', { style: { fontWeight: 600, color: 'var(--dsw-alias-label-primary, #111)' } }, '本期合计'),
         h('span', null, h('b', { style: { fontSize: 13.5, color: 'var(--dsw-alias-label-primary, #111)' } }, fmtNumberCn(calTotals.tokens)), ' Tokens'),
         h('span', null, h('b', { style: { fontSize: 13.5, color: 'var(--dsw-alias-label-primary, #111)' } }, money2(calTotals.cost))),
-        splitChip('峰', calTotals.peakCost, PEAK_COLOR, 11),
-        splitChip('闲', calTotals.offPeakCost, OFF_COLOR, 11));
+        splitChip('峰时', calTotals.peakCost, PEAK_COLOR, 11),
+        splitChip('闲时', calTotals.offPeakCost, OFF_COLOR, 11));
 
       const weekday = ['一', '二', '三', '四', '五', '六', '日'];
       let gridBody = null;
