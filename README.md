@@ -129,3 +129,15 @@ plugin_manager remove_bundle "@local/precise-billing"
 - 令牌口径依赖 DSH 上报的 `usage`；上游没有上报 usage 的请求无法还原。
 - 会话日志被清理/删除后，其历史仍保留在索引里（按日聚合），但无法再重算。
 - 价目表内置在 `index.js` 的 `PRICES`，模型或价格变动时需要更新一行。
+
+## 参考与致谢
+
+本插件在设计与实现中学习、对比过以下开源项目（详见 `CREDITS.md`）：
+
+- **DeepSeek-Usage**（MIT）— https://github.com/sdiwenchen-lang/DeepSeek-Usage
+  用量看板的信息架构参考（趋势/日历、统计卡、模型图表、按模型明细、日期弹层），面板与图表为独立实现。
+- **dsh-hot-restart**（MIT）— https://github.com/xiaolu511/dsh-hot-restart
+  热重启机制的思路参考（把重启助手交给 Explorer 派发，避免被 DSH job object 连带结束）；本插件在宿主侧独立实现了精简版，未调用其接口，也未复制其源码。
+- dsh-unified-market（MIT）、dsh-duet（Apache-2.0）— 仅调研，未使用代码。
+
+以上借鉴均为思路/机制层面的独立重写；如后续复用具体代码，将保留原始版权声明并补充到 `CREDITS.md`。

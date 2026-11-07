@@ -1271,7 +1271,13 @@ export async function readAccount(ctx) {
 }
 
 
-/** 热重启：把助手交给 Explorer 启动，避免被 DSH 的 job object 一起杀掉。 */
+/**
+ * 热重启（本插件自行实现，非调用其他插件）：
+ *   机制参考了开源项目 dsh-hot-restart（MIT，https://github.com/xiaolu511/dsh-hot-restart）
+ *   的做法——先把“等待→杀进程→重新拉起”的助手交给 Explorer 派发，避免助手被 DSH 的
+ *   job object 连带结束；本函数为独立编写的精简实现（约 50 行），未复制其源码。
+ */
+
 let lastRestartAt = 0;
 function desktopExePath() {
   const candidates = [

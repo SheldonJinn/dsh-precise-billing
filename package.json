@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "按 DeepSeek 官方人民币价目（含峰谷时段与法定节假日）逐条请求精确计算会话费用",
+  "description": "按 DeepSeek 官方人民币价目逐请求精确计算会话费用（峰谷时段、法定节假日），提供费用条、侧栏卡片、用量看板与热重启按钮",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
@@ -16,7 +16,8 @@
     "package.json",
     "cordis.patch.yml",
     "README.md",
-    "locale/*.json"
+    "locale/*.json",
+    "CREDITS.md"
   ],
   "dsh": {
     "bundle": {
@@ -25,7 +26,35 @@
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
     }
-  }
+  },
+  "credits": [
+    {
+      "name": "DeepSeek-Usage",
+      "license": "MIT",
+      "repository": "https://github.com/sdiwenchen-lang/DeepSeek-Usage",
+      "note": "用量看板、日历、趋势面板的设计参考；独立实现，未复制源码"
+    },
+    {
+      "name": "dsh-hot-restart",
+      "license": "MIT",
+      "repository": "https://github.com/xiaolu511/dsh-hot-restart",
+      "note": "热重启助手派发机制的思路参考；独立实现的精简版"
+    },
+    {
+      "name": "dsh-unified-market",
+      "license": "MIT",
+      "repository": "https://github.com/jing-hy/dsh-unified-market",
+      "note": "仅做过兼容性调研，本插件未使用其代码"
+    },
+    {
+      "name": "dsh-duet",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/YuMS/dsh-duet",
+      "note": "仅做过语音交互调研，本插件未使用其代码"
+    }
+  ]
 }
