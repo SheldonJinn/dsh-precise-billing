@@ -30,3 +30,15 @@
 - 客户端：`client.js`（费用条、侧边栏卡片、设置页、用量看板）
 - 数据：`$DSH_HOME/storages/precise-billing.json`
 - 仓库备份：`E:\DSH项目备份\插件编写\插件编写.git`
+
+## 五、如何安装原版
+
+本插件的用量看板与热重启已由本插件自行实现，原版插件已从本机卸载。如仍想单独使用原版：
+
+```bash
+dsh plugin --profile desktop add deepseek-usage
+dsh plugin --profile desktop add dsh-hot-restart
+```
+
+- DeepSeek-Usage：https://github.com/sdiwenchen-lang/DeepSeek-Usage
+- dsh-hot-restart：https://github.com/xiaolu511/dsh-hot-restart

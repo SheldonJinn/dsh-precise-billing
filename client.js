@@ -3007,6 +3007,26 @@ function closeIcon(size = 14) {
               h('div', { style: { width: 300, padding: 8, borderRadius: 8, border: '1px dashed var(--dsw-alias-border-l1, rgba(0,0,0,.18))' } },
                 buildSidebar(draft, families, data, account, now, true))))),
 
+        h(Section, { title: '参考项目', desc: '本插件的用量看板与热重启分别参考了下面两个开源插件（MIT 许可）。原版已卸载，如仍想使用可按下面地址自行安装。' },
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 } },
+            h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' } },
+              h('div', { style: { minWidth: 0, flex: '1 1 240px' } },
+                h('div', { style: { fontSize: 12.5, fontWeight: 600 } }, 'DeepSeek-Usage'),
+                h('div', { style: { fontSize: 11, color: MUTED, lineHeight: 1.65, marginTop: 2 } }, '官方用量看板：趋势/日历视图、模型消费与 Token 图表、按模型明细。'),
+                h('a', { href: 'https://github.com/sdiwenchen-lang/DeepSeek-Usage', target: '_blank', rel: 'noopener noreferrer', style: { display: 'inline-block', marginTop: 3, fontSize: 11, color: '#2f6fed', wordBreak: 'break-all' } }, 'https://github.com/sdiwenchen-lang/DeepSeek-Usage')),
+              h('div', { style: { display: 'flex', gap: 6, flex: '0 0 auto' } },
+                h('button', { type: 'button', onClick: () => { try { window.open('https://github.com/sdiwenchen-lang/DeepSeek-Usage', '_blank', 'noopener'); } catch { /* ignore */ } } }, '打开主页'),
+                h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('dsh plugin --profile desktop add deepseek-usage'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))),
+            h('div', { style: { height: 1, background: 'rgba(0,0,0,.07)' } }),
+            h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' } },
+              h('div', { style: { minWidth: 0, flex: '1 1 240px' } },
+                h('div', { style: { fontSize: 12.5, fontWeight: 600 } }, 'dsh-hot-restart'),
+                h('div', { style: { fontSize: 11, color: MUTED, lineHeight: 1.65, marginTop: 2 } }, '热重启插件：窗口内一键重启 DSH，无黑窗口，带自检诊断。'),
+                h('a', { href: 'https://github.com/xiaolu511/dsh-hot-restart', target: '_blank', rel: 'noopener noreferrer', style: { display: 'inline-block', marginTop: 3, fontSize: 11, color: '#2f6fed', wordBreak: 'break-all' } }, 'https://github.com/xiaolu511/dsh-hot-restart')),
+              h('div', { style: { display: 'flex', gap: 6, flex: '0 0 auto' } },
+                h('button', { type: 'button', onClick: () => { try { window.open('https://github.com/xiaolu511/dsh-hot-restart', '_blank', 'noopener'); } catch { /* ignore */ } } }, '打开主页'),
+                h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('dsh plugin --profile desktop add dsh-hot-restart'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))))),
+
       );
     }
 

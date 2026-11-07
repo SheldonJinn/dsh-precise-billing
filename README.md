@@ -141,3 +141,12 @@ plugin_manager remove_bundle "@local/precise-billing"
 - dsh-unified-market（MIT）、dsh-duet（Apache-2.0）— 仅调研，未使用代码。
 
 以上借鉴均为思路/机制层面的独立重写；如后续复用具体代码，将保留原始版权声明并补充到 `CREDITS.md`。
+
+### 单独安装原版
+
+```bash
+dsh plugin --profile desktop add deepseek-usage
+dsh plugin --profile desktop add dsh-hot-restart
+```
+
+设置页「参考项目」中也提供了两个项目的地址与一键复制安装命令。
