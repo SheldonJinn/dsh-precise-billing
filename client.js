@@ -1766,7 +1766,7 @@ window.__ModuleLoader__.load({
       } else if (dim === 'day') {
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 } },
           weekday.map((name) => h('div', { key: 'w-' + name, style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', paddingBottom: 3, fontWeight: 700 } }, name)),
-          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'day') : emptyTile('blank-' + index, 118))));
+          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'day') : h('div', { key: 'blank-' + index, style: { height: 118, boxSizing: 'border-box' } }))));
       } else {
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 } },
           calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'month') : emptyTile('blank-' + index, 128))));
