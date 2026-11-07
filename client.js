@@ -1695,11 +1695,11 @@ window.__ModuleLoader__.load({
                 h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap' } }, cell.sub))
             : null,
           h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 0 } },
-            h('span', { style: { fontSize: big ? 11 : mini ? 9.5 : 11, color: MUTED, whiteSpace: 'nowrap', flex: '0 0 auto' } }, 'Token'),
+            h('span', { style: { fontSize: big ? 11 : mini ? 9.5 : 11, color: MUTED, whiteSpace: 'nowrap', flex: '0 0 auto', fontWeight: 700 } }, 'Token'),
             h('span', { style: { fontSize: big ? 12 : mini ? 9.5 : 11.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.2, marginLeft: 'auto', whiteSpace: 'nowrap' } },
               empty ? '—' : fmtNumberCn(cell.tokens))),
           h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 0 } },
-            h('span', { style: { fontSize: big ? 11 : mini ? 9.5 : 11, color: MUTED, whiteSpace: 'nowrap', flex: '0 0 auto' } }, '消费'),
+            h('span', { style: { fontSize: big ? 11 : mini ? 9.5 : 11, color: MUTED, whiteSpace: 'nowrap', flex: '0 0 auto', fontWeight: 700 } }, '消费'),
             h('span', { style: { fontSize: big ? 12 : mini ? 9.5 : 11.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', marginLeft: 'auto', whiteSpace: 'nowrap' } },
               empty ? '—' : money2(cell.cost))),
           empty ? null : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' } },
