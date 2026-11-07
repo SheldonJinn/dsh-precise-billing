@@ -1649,10 +1649,10 @@ window.__ModuleLoader__.load({
       const splitRow = (label, value, color, size) => h('div', {
         style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, minWidth: 0 },
       },
-        h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: size, color: MUTED, whiteSpace: 'nowrap' } },
+        h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: size, color: color, whiteSpace: 'nowrap', fontWeight: 600 } },
           h('i', { style: { width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flex: '0 0 auto' } }),
           label),
-        h('span', { style: { fontSize: size, color: MUTED, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' } }, money2(value)));
+        h('span', { style: { fontSize: size, color: color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontWeight: 600 } }, money2(value)));
 
       const cellCard = (cell, variant) => {
         const isToday = cell.isToday === true || cell.key === todayKey;
