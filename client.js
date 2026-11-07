@@ -2608,7 +2608,7 @@ function closeIcon(size = 14) {
               type: 'button',
               onClick: () => setUsageOpen(true),
               style: { padding: '6px 12px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(47,111,237,.45)', color: '#2f6fed', background: 'transparent', cursor: 'pointer' },
-            }, '📊 用量面板'),
+            }, h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 5 } }, chartIcon(12), '用量面板')),
             h('button', {
               type: 'button',
               onClick: () => save(),
