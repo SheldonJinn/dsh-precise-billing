@@ -742,7 +742,9 @@ window.__ModuleLoader__.load({
           if (time.slice(0, 10) !== dayKey) continue;
           const hour = Number(time.slice(11, 13));
           if (!Number.isFinite(hour)) continue;
-          const slot = byHour[hour] || (byHour[hour] = { total: 0, parts: {} });
+          const slot = byHour[hour] || (byHour[hour] = { total: 0, parts: {}, peak: 0, off: 0 });
+          slot.peak += entry.peakCost || 0;
+          slot.off += entry.offPeakCost || 0;
           const hourModels = entry.models || {};
           const keys = Object.keys(hourModels);
           if (keys.length === 0) {
@@ -756,8 +758,8 @@ window.__ModuleLoader__.load({
           }
         }
         for (let hour = 0; hour <= 23; hour += 1) {
-          const slot = byHour[hour] || { total: 0, parts: {} };
-          series.push({ label: String(hour).padStart(2, '0') + ':00', total: slot.total, parts: slot.parts });
+          const slot = byHour[hour] || { total: 0, parts: {}, peak: 0, off: 0 };
+          series.push({ label: String(hour).padStart(2, '0') + ':00', total: slot.total, parts: slot.parts, peak: slot.peak, off: slot.off });
         }
         xLabels = ['00:00', '06:00', '12:00', '18:00', '23:00'];
       } else {
@@ -789,13 +791,17 @@ window.__ModuleLoader__.load({
       const gridLines = [1, 2, 3, 4].map((step) =>
         h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
 
+      const singleModel = names.length <= 1;
       const bars = series.map((item, index) => {
-        const stack = names
-          .filter((name) => item.parts[name])
-          .map((name) => h('div', {
-            key: name,
-            style: { height: item.total > 0 ? ((item.parts[name] || 0) / item.total) * 100 + '%' : '0%', background: modelColor(name, names) },
-          }));
+        const phaseColor = (item.peak || 0) > (item.off || 0) ? PEAK_COLOR : OFF_COLOR;
+        const stack = singleModel
+          ? [h('div', { key: 'phase', style: { height: '100%', background: phaseColor } })]
+          : names
+              .filter((name) => item.parts[name])
+              .map((name) => h('div', {
+                key: name,
+                style: { height: item.total > 0 ? ((item.parts[name] || 0) / item.total) * 100 + '%' : '0%', background: modelColor(name, names) },
+              }));
         const bar = h('div', { style: { width: '55%', maxWidth: 22, minWidth: 3, height: (item.total > 0 ? Math.max(1, (item.total / max) * 100) : 0) + '%', display: 'flex', flexDirection: 'column-reverse', borderRadius: '2px 2px 0 0', overflow: 'hidden' } }, stack);
         return h('div', {
           key: index,
@@ -815,10 +821,20 @@ window.__ModuleLoader__.load({
         h('div', { style: { width: 58, height: height, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontSize: 10, color: MUTED, textAlign: 'right' } }, yLabels),
         h('div', { style: { flex: '1 1 0', minWidth: 0 } }, plot, xAxis));
 
-      const legendItems = names.map((name) =>
-        h('span', { key: name, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
-          h('i', { style: { width: 8, height: 8, borderRadius: 2, background: modelColor(name, names), display: 'inline-block' } }),
-          name));
+      const legendItems = singleModel
+        ? [
+            h('span', { key: 'peak', style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
+              h('i', { style: { width: 8, height: 8, borderRadius: 2, background: PEAK_COLOR, display: 'inline-block' } }),
+              '峰时'),
+            h('span', { key: 'off', style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
+              h('i', { style: { width: 8, height: 8, borderRadius: 2, background: OFF_COLOR, display: 'inline-block' } }),
+              '闲时'),
+            h('span', { key: 'model', style: { color: MUTED } }, names[0] || ''),
+          ]
+        : names.map((name) =>
+            h('span', { key: name, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
+              h('i', { style: { width: 8, height: 8, borderRadius: 2, background: modelColor(name, names), display: 'inline-block' } }),
+              name));
       const legend = h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 6, fontSize: 10.5, color: MUTED } }, legendItems);
 
       return h('div', null, axis, legend);
