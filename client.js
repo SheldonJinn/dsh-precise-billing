@@ -283,7 +283,10 @@ window.__ModuleLoader__.load({
 
     function chartIcon(size = 12) {
   return h('svg', { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } },
-    h('path', { d: 'M4 20V10M12 20V4M20 20v-8', stroke: 'currentColor', strokeWidth: 2.2, strokeLinecap: 'round' }));
+    h('rect', { x: 3, y: 3, width: 7.5, height: 7.5, rx: 1.8, fill: 'currentColor' }),
+    h('rect', { x: 13.5, y: 3, width: 7.5, height: 7.5, rx: 1.8, fill: 'currentColor' }),
+    h('rect', { x: 3, y: 13.5, width: 7.5, height: 7.5, rx: 1.8, fill: 'currentColor' }),
+    h('rect', { x: 13.5, y: 13.5, width: 7.5, height: 7.5, rx: 1.8, fill: 'currentColor' }));
 }
 
 function closeIcon(size = 14) {
@@ -2093,6 +2096,8 @@ function closeIcon(size = 14) {
         'font-size:clamp(9px,10cqw,12px);font-variant-numeric:tabular-nums;white-space:nowrap;-webkit-font-smoothing:antialiased}',
 
         '.pb-gear{transition:opacity .15s ease}.pb-gear:hover{opacity:1 !important}',
+        '.pb-side-actions{opacity:0;pointer-events:none;transition:opacity .14s ease}',
+        '.pb-side-card:hover .pb-side-actions{opacity:1;pointer-events:auto}',
         '.pb-field{transition:background .12s ease;border-radius:4px}.pb-field:hover{background:rgba(0,0,0,.04)}',
         '@keyframes pb-today-pulse{0%,100%{opacity:1}50%{opacity:.5}}',
         '.pb-today-badge{animation:pb-today-pulse 2.8s ease-in-out infinite}',
@@ -2292,10 +2297,9 @@ function closeIcon(size = 14) {
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
-        paddingRight: 34,
       };
 
-      const gridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 1, alignItems: 'center', paddingRight: 34 };
+      const gridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 1, alignItems: 'center', paddingRight: 16 };
 
       const title = '累计消费 ' + totalText + ' · 账户余额 ' + money(Number(account?.balance)) + '\n' +
         (phase.peak ? '目前峰时' : '目前闲时') + ' 进度 ' + pct(phase.progress) + ' · ' + fmtClock(phase.until) + ' 转' + (phase.peak ? '闲时' : '峰时');
@@ -2311,21 +2315,19 @@ function closeIcon(size = 14) {
       const monthCostText = logged ? money(Number(account.monthCost)) : '—';
       const balanceText = logged && Number.isFinite(Number(account.balance)) ? money(Number(account.balance)) : '—';
 
-      const gearNode = h('button', {
+      const actionButton = (title, onClick, icon) => h('button', {
         type: 'button',
         className: 'pb-gear',
-        title: '打开精确计费设置',
-        onClick: () => openBillingSettings(),
-        style: { position: 'absolute', top: 0, right: 0, border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 1px', color: 'var(--dsw-alias-label-secondary, #666)', fontSize: 12, lineHeight: 1, opacity: 0.45 },
-      }, gearIcon(12));
-
-      const chartNode = h('button', {
-        type: 'button',
-        className: 'pb-gear',
-        title: '用量看板',
-        onClick: () => setUsageOpen(true),
-        style: { position: 'absolute', top: 0, right: 18, border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 1px', color: 'var(--dsw-alias-label-secondary, #666)', fontSize: 12, lineHeight: 1, opacity: 0.55 },
-      }, chartIcon(12));
+        title,
+        onClick,
+        style: { border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 1px', color: 'var(--dsw-alias-label-secondary, rgba(0,0,0,.45))', lineHeight: 1, display: 'inline-flex', alignItems: 'center' },
+      }, icon);
+      const actionsNode = h('div', {
+        className: 'pb-side-actions',
+        style: { position: 'absolute', top: -1, right: 0, display: 'flex', alignItems: 'center', gap: 2, zIndex: 2 },
+      },
+        actionButton('用量看板', () => setUsageOpen(true), chartIcon(12)),
+        actionButton('打开精确计费设置', () => openBillingSettings(), gearIcon(12)));
 
       const cell = (label, value, full) => h('div', {
         style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 },
@@ -2368,7 +2370,7 @@ function closeIcon(size = 14) {
         ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 1, marginTop: 1 } }, ...detailRows)
         : null;
 
-      return h('div', { title, style: { ...base, gap: 2, padding: '2px 2px 4px' } }, top, barNode, infoNode, detailsNode, chartNode, gearNode);
+      return h('div', { className: 'pb-side-card', title, style: { ...base, gap: 2, padding: '2px 2px 4px' } }, top, barNode, infoNode, detailsNode, actionsNode);
     }
 
     function SidebarCard(props) {
