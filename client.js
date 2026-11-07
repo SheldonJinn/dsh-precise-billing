@@ -815,7 +815,7 @@ window.__ModuleLoader__.load({
       });
 
       const max = Math.max.apply(null, series.map((item) => item.total).concat([0.0001]));
-      const height = 120;
+      const height = 96;
 
       const axisMoney = (value) => '¥' + Number(value || 0).toFixed(2);
       const yLabels = [4, 3, 2, 1, 0].map((step) =>
@@ -903,7 +903,7 @@ window.__ModuleLoader__.load({
       if (values.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
 
       const width = 1000;
-      const height = 120;
+      const height = 96;
       const max = Math.max.apply(null, values.concat([1]));
       const step = values.length > 1 ? width / (values.length - 1) : width;
       const px = (index) => Math.round(index * step);
@@ -1027,7 +1027,7 @@ window.__ModuleLoader__.load({
         return item.label;
       });
       const max = Math.max.apply(null, series.map((item) => item.total).concat([1]));
-      const height = 120;
+      const height = 96;
       const axisText = (value) => (metric === 'requests' ? fmtNumberCn(value) : fmtNumberCn(value));
       const gridLines = [1, 2, 3, 4].map((step) =>
         h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
@@ -1117,7 +1117,7 @@ window.__ModuleLoader__.load({
       },
       panel: {
         width: 'min(900px, 90vw)',
-        height: 'min(86vh, 840px)',
+        height: 'min(90vh, 900px)',
         background: 'var(--dsw-alias-bg-layer-1, #ffffff)',
         color: 'var(--dsw-alias-label-primary, #111)',
         border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12))',
@@ -1138,7 +1138,7 @@ window.__ModuleLoader__.load({
       },
       tabs: { display: 'flex', gap: 18, padding: '0 16px', borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))' },
       controls: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 16px', minHeight: 50, boxSizing: 'border-box' },
-      body: { flex: '1 1 auto', overflowY: 'auto', padding: '4px 16px 18px' },
+      body: { flex: '1 1 auto', overflowY: 'auto', padding: '4px 16px 26px' },
       cards: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, margin: '10px 0 14px' },
       card: {
         padding: '10px 12px',
