@@ -766,7 +766,7 @@ window.__ModuleLoader__.load({
         series = (days || []).slice(-31).map((day) => {
           const parts = {};
           for (const model of day.models || []) parts[model.model] = model.cost || 0;
-          return { label: day.date, total: day.cost || 0, parts };
+          return { label: day.date, total: day.cost || 0, parts, peak: day.peakCost || 0, off: day.offPeakCost || 0 };
         });
         if (series.length > 0) {
           const middle = series[Math.floor(series.length / 2)].label.slice(5);
@@ -777,8 +777,7 @@ window.__ModuleLoader__.load({
 
       const axisSlots = series.map((item, index) => {
         if (singleDay) return item.label;
-        if (index === 0 || index === Math.floor(series.length / 2) || index === series.length - 1) return item.label.slice(5);
-        return '';
+        return item.label.slice(5);
       });
 
       const max = Math.max.apply(null, series.map((item) => item.total).concat([0.0001]));
@@ -795,7 +794,12 @@ window.__ModuleLoader__.load({
       const bars = series.map((item, index) => {
         const phaseColor = (item.peak || 0) > (item.off || 0) ? PEAK_COLOR : OFF_COLOR;
         const stack = singleModel
-          ? [h('div', { key: 'phase', style: { height: '100%', background: phaseColor } })]
+          ? (singleDay || item.total <= 0
+              ? [h('div', { key: 'phase', style: { height: '100%', background: phaseColor } })]
+              : [
+                  h('div', { key: 'peak', style: { height: ((item.peak || 0) / item.total) * 100 + '%', background: PEAK_COLOR } }),
+                  h('div', { key: 'off', style: { height: ((item.off || 0) / item.total) * 100 + '%', background: OFF_COLOR } }),
+                ])
           : names
               .filter((name) => item.parts[name])
               .map((name) => h('div', {
@@ -814,7 +818,7 @@ window.__ModuleLoader__.load({
         gridLines,
         h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 6 } }, bars));
 
-      const xAxis = h('div', { style: { display: 'flex', fontSize: singleDay ? 8 : 9.5, color: MUTED, marginTop: 3 } },
+      const xAxis = h('div', { style: { display: 'flex', fontSize: singleDay || series.length > 10 ? 8 : 9.5, color: MUTED, marginTop: 3 } },
         axisSlots.map((label, index) => h('span', { key: index, style: { flex: '1 1 0', textAlign: 'center', whiteSpace: 'nowrap' } }, label)));
 
       const axis = h('div', { style: { display: 'flex', gap: 6 } },
@@ -895,10 +899,9 @@ window.__ModuleLoader__.load({
 
       const axisSlots = labels.map((label, index) => {
         if (singleDay) return label;
-        if (index === 0 || index === Math.floor(labels.length / 2) || index === labels.length - 1) return label.slice(5);
-        return '';
+        return label.slice(5);
       });
-      const xAxis = h('div', { style: { display: 'flex', fontSize: singleDay ? 8 : 9.5, color: MUTED, marginTop: 3 } },
+      const xAxis = h('div', { style: { display: 'flex', fontSize: singleDay || labels.length > 10 ? 8 : 9.5, color: MUTED, marginTop: 3 } },
         axisSlots.map((label, index) => h('span', { key: index, style: { flex: '1 1 0', textAlign: 'center', whiteSpace: 'nowrap' } }, label)));
 
       const yAxis = h('div', { style: { width: 56, height: height, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontSize: 10, color: MUTED, textAlign: 'right' } },
@@ -988,8 +991,7 @@ window.__ModuleLoader__.load({
       if (series.length === 0) return h('div', { style: { fontSize: 11.5, color: MUTED } }, '暂无数据');
       const axisSlots = series.map((item, index) => {
         if (singleDay) return item.label;
-        if (index === 0 || index === Math.floor(series.length / 2) || index === series.length - 1) return item.label.slice(5);
-        return '';
+        return item.label.slice(5);
       });
       const max = Math.max.apply(null, series.map((item) => item.total).concat([1]));
       const height = 120;
@@ -1017,7 +1019,7 @@ window.__ModuleLoader__.load({
       const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.12)', borderBottom: '1px solid rgba(0,0,0,.12)' } },
         gridLines,
         h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 6 } }, bars));
-      const xAxis = h('div', { style: { display: 'flex', fontSize: singleDay ? 8 : 9.5, color: MUTED, marginTop: 3 } },
+      const xAxis = h('div', { style: { display: 'flex', fontSize: singleDay || series.length > 10 ? 8 : 9.5, color: MUTED, marginTop: 3 } },
         axisSlots.map((label, index) => h('span', { key: index, style: { flex: '1 1 0', textAlign: 'center', whiteSpace: 'nowrap' } }, label)));
       const legendItems = names.map((name) =>
         h('span', { key: name, style: { display: 'inline-flex', alignItems: 'center', gap: 4 } },
