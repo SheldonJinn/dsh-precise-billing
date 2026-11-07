@@ -2100,6 +2100,8 @@ function closeIcon(size = 14) {
         '.pb-side-card:hover .pb-side-actions{opacity:1;pointer-events:auto}',
         '.pb-settings button{background:transparent !important;border:1px solid rgba(0,0,0,.22) !important;color:var(--dsw-alias-label-primary,#111) !important;transition:background .12s ease,color .12s ease,border-color .12s ease}',
         '.pb-settings button:hover{background:rgba(47,111,237,.12) !important;border-color:rgba(47,111,237,.38) !important}',
+        '@keyframes pb-toast-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.9)}12%{opacity:1;transform:translate(-50%,-50%) scale(1)}85%{opacity:1}100%{opacity:0}}',
+        '.pb-toast{animation:pb-toast-pop 1.8s ease forwards}',
         '.pb-settings .pb-seg{border-color:rgba(0,0,0,.22) !important;background:transparent !important}',
         '.pb-settings .pb-seg button{border:none !important;border-radius:0 !important;background:transparent !important;color:var(--dsw-alias-label-primary,#111) !important}',
         '.pb-settings .pb-seg button:hover{background:rgba(47,111,237,.12) !important}',
@@ -2622,7 +2624,7 @@ function closeIcon(size = 14) {
       const sidebarHidden = draft.sidebar === false;
 
       return h('div', { className: 'pb-settings', style: { padding: '2px 2px 24px', maxWidth: 760 } },
-        toast ? h('div', { className: 'pb-toast', style: { position: 'sticky', top: 0, zIndex: 50, width: 'fit-content', margin: '0 auto 8px', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(20,20,22,.92)', color: '#fff', fontSize: 12, padding: '7px 14px', borderRadius: 999, boxShadow: '0 6px 18px rgba(0,0,0,.22)' } }, '\u2713 ' + toast) : null,
+        toast ? h('div', { className: 'pb-toast', style: { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 2147483000, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#2f6fed', color: '#fff', fontSize: 14, fontWeight: 600, padding: '12px 22px', borderRadius: 12, boxShadow: '0 14px 36px rgba(47,111,237,.38)', letterSpacing: '.2px' } }, '\u2713 ' + toast) : null,
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 } },
           h('div', null,
             h('h2', { style: { fontSize: 17, margin: '0 0 3px', color: 'var(--dsw-alias-label-primary, #111)' } }, '精确计费'),
