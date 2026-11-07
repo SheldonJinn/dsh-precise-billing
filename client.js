@@ -1462,7 +1462,12 @@ window.__ModuleLoader__.load({
         const first = new Date(anchor.year, anchor.month - 1, 1);
         const lead = (first.getDay() + 6) % 7;
         const count = new Date(anchor.year, anchor.month, 0).getDate();
-        for (let i = 0; i < lead; i += 1) cells.push(null);
+        for (let i = lead - 1; i >= 0; i -= 1) {
+          const date = new Date(anchor.year, anchor.month - 1, -i);
+          const outside = emptyCell(isoDate(date), String(date.getDate()), '');
+          outside.outside = true;
+          cells.push(outside);
+        }
         for (let d = 1; d <= count; d += 1) {
           const key = anchor.year + '-' + String(anchor.month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
           const cell = emptyCell(key, String(d), key === todayKey ? '今天' : '');
@@ -1477,6 +1482,14 @@ window.__ModuleLoader__.load({
             addCellUsage(cell, merged, officialNeedsLocal);
           }
           cells.push(cell);
+        }
+        let trailing = 1;
+        while (cells.length % 7 !== 0) {
+          const date = new Date(anchor.year, anchor.month - 1, count + trailing);
+          const outside = emptyCell(isoDate(date), String(date.getDate()), '');
+          outside.outside = true;
+          cells.push(outside);
+          trailing += 1;
         }
         return { cells, title: anchor.year + ' 年 ' + anchor.month + ' 月' };
       }
@@ -1601,7 +1614,7 @@ window.__ModuleLoader__.load({
         if (node && typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }, [dim, anchor.year, state.status]);
 
-      const allCells = (calendar.matrix ? calendar.rows.flatMap((row) => row.cells) : calendar.cells).filter(Boolean);
+      const allCells = (calendar.matrix ? calendar.rows.flatMap((row) => row.cells) : calendar.cells).filter((cell) => cell && !cell.outside);
       const maxTokens = Math.max.apply(null, allCells.map((cell) => cell.tokens).concat([1]));
       const calTotals = allCells.reduce((acc, cell) => ({
         tokens: acc.tokens + cell.tokens,
@@ -1689,7 +1702,7 @@ window.__ModuleLoader__.load({
             splitRow('闲时', cell.offPeakCost, OFF_COLOR, big ? 10.5 : mini ? 9.5 : 10)));
       };
 
-      const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, background: 'rgba(0,0,0,.035)' } });
+      const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, background: 'rgba(0,0,0,.02)', border: '1px solid rgba(0,0,0,.07)' } });
 
       const dimPills = h('div', { style: { display: 'inline-flex', padding: 2, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.04))' } },
         [['day', '按日'], ['week', '按周'], ['month', '按月'], ['year', '按年']].map(([value, label]) => h('button', {
@@ -1764,9 +1777,22 @@ window.__ModuleLoader__.load({
                 cell ? cellCard(cell, dim === 'year' ? 'year' : 'week') : emptyTile('e-' + row.label + '-' + index, dim === 'year' ? 108 : 118));
             }))));
       } else if (dim === 'day') {
+        const outsideTile = (cell) => h('div', {
+          key: cell.key,
+          style: {
+            height: 118, boxSizing: 'border-box', borderRadius: 10,
+            border: '1px solid rgba(0,0,0,.05)', background: 'transparent',
+            padding: '8px 10px', color: 'rgba(0,0,0,.32)', fontSize: 10.5, fontWeight: 600,
+            userSelect: 'none', display: 'flex', flexDirection: 'column', gap: 3,
+          },
+        }, cell.label);
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 } },
           weekday.map((name) => h('div', { key: 'w-' + name, style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', paddingBottom: 3, fontWeight: 700 } }, name)),
-          calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'day') : h('div', { key: 'blank-' + index, style: { height: 118, boxSizing: 'border-box' } }))));
+          calendar.cells.map((cell, index) => {
+            if (!cell) return h('div', { key: 'blank-' + index, style: { height: 118, boxSizing: 'border-box' } });
+            if (cell.outside) return outsideTile(cell);
+            return cellCard(cell, 'day');
+          }));
       } else {
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 } },
           calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'month') : emptyTile('blank-' + index, 128))));
