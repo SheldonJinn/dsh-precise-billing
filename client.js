@@ -1852,7 +1852,7 @@ function closeIcon(size = 14) {
         const mini = variant === 'year';
         const level = levelOf(cell.tokens);
         const heat = isToday ? 'rgba(47,111,237,.10)' : 'transparent';
-        const hoverCell = dim === 'day' || dim === 'week' || dim === 'month';
+        const hoverCell = dim === 'day' || dim === 'week' || dim === 'month' || dim === 'year';
         const idleCell = hoverCell && !isToday && hoverKey !== cell.key;
         const title = (cell.label || cell.sub ? (cell.label + ' ' + (cell.sub || '')).trim() + '\n' : '') +
           'Tokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次\n' +
@@ -1991,11 +1991,15 @@ function closeIcon(size = 14) {
               }));
             return h('div', {
               key: 'year-' + row.label,
+              onMouseEnter: () => setHoverKey('year-' + row.label),
+              onMouseLeave: () => setHoverKey(null),
               style: {
-                border: '1px solid rgba(0,0,0,.13)',
+                border: '1px solid ' + (hoverKey === 'year-' + row.label ? 'rgba(47,111,237,.30)' : 'rgba(0,0,0,.10)'),
                 borderRadius: 12,
                 padding: '12px 14px',
-                background: 'transparent',
+                background: hoverKey === 'year-' + row.label ? 'rgba(47,111,237,.06)' : 'rgba(0,0,0,.025)',
+                opacity: hoverKey === 'year-' + row.label ? 1 : 0.85,
+                transition: 'background .14s ease, border-color .14s ease, opacity .14s ease',
               },
             },
               h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' } },
