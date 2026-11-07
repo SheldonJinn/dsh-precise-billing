@@ -1334,12 +1334,11 @@ window.__ModuleLoader__.load({
               h(UsageModelPicker, { models: rawModels, selected: selectedModels, onChange: setSelectedModels }),
               loading ? h('span', { style: { fontSize: 11, color: MUTED } }, '加载中…') : null,
               errorText ? h('span', { style: { fontSize: 11, color: '#c0392b' } }, errorText) : null),
-            mode === 'official'
-              ? h('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11, color: MUTED, padding: '0 16px 4px' } },
-                  h('span', null, '本地用量合计 ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtMoneyCn((data && data.localTotals && data.localTotals.cost) || 0))),
-                  h('span', null, '官方账单合计 ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtMoneyCn(totals.cost))),
-                  data && data.peakSplit === false ? h('span', null, '峰/闲取自本地日志') : null)
-              : null,
+            h('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11, color: MUTED, padding: '0 16px 4px' } },
+              h('span', null, '本地用量合计 ', h('b', { style: { color: 'var(--dsw-alias-label-primary, #111)' } }, fmtMoneyCn(mode === 'local' ? totals.cost : (data && data.localTotals && data.localTotals.cost) || 0))),
+              h('span', null, '官方账单合计 ', h('b', { style: { color: mode === 'official' ? 'var(--dsw-alias-label-primary, #111)' : MUTED } }, mode === 'official' ? fmtMoneyCn(totals.cost) : '—')),
+              mode === 'official' && data && data.peakSplit === false ? h('span', null, '峰/闲取自本地日志') : null,
+              mode === 'local' ? h('span', null, '（切到「官方」查看账单口径合计）') : null),
             h('div', { style: usagePanelStyles.body },
               h('div', { style: usagePanelStyles.cards },
                 h(UsageStatCard, { label: 'Tokens', value: fmtNumberCn(usageTotalTokens(tokens)), hint: '命中率 ' + (hit * 100).toFixed(2) + '%' }),
