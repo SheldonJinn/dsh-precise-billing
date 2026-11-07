@@ -300,12 +300,11 @@ function restartIcon(size = 12) {
 async function restartDsh() {
   try {
     if (typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm('确定要热重启 DSH 吗？\n\n窗口会关闭并自动重新打开，当前对话会保留。')) return;
-    const at = Date.now();
-    const res = await fetch('/dsh-hot-restart/restart', {
+    const res = await fetch('/api/precise-billing/restart', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'content-type': 'application/json', 'x-dsh-hot-restart': '1' },
-      body: JSON.stringify({ at, ua: typeof navigator !== 'undefined' ? navigator.userAgent : '' }),
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok || payload.ok !== true) throw new Error(payload.error || ('HTTP ' + res.status));
