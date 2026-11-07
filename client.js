@@ -1833,6 +1833,7 @@ window.__ModuleLoader__.load({
 
       const weekday = ['一', '二', '三', '四', '五', '六', '日'];
       let gridBody = null;
+      let dayHeader = null;
       if (calendar.matrix && dim === 'year') {
         gridBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
           calendar.rows.map((row, rowIndex) => {
@@ -1938,8 +1939,9 @@ window.__ModuleLoader__.load({
             userSelect: 'none', display: 'flex', flexDirection: 'column', gap: 3,
           },
         }, cell.label);
+        dayHeader = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6, padding: '6px 10px 4px', flex: '0 0 auto' } },
+          weekday.map((name) => h('div', { key: 'w-' + name, style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', paddingBottom: 3, fontWeight: 700 } }, name)));
         gridBody = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 } },
-          weekday.map((name) => h('div', { key: 'w-' + name, style: { fontSize: 12.5, color: 'var(--dsw-alias-label-primary, #111)', textAlign: 'center', paddingBottom: 3, fontWeight: 700 } }, name)),
           calendar.cells.map((cell, index) => {
             if (!cell) return h('div', { key: 'blank-' + index, style: { height: 120, boxSizing: 'border-box' } });
             if (cell.outside) return outsideTile(cell);
@@ -2046,6 +2048,7 @@ window.__ModuleLoader__.load({
 
       return h('div', { style: { display: 'flex', flexDirection: 'column', minHeight: 0, flex: '1 1 auto' } },
         head,
+        dayHeader,
         h('div', { style: { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overflowX: 'hidden', marginTop: 8 } },
           h('div', { style: { background: 'transparent', borderRadius: 12, padding: 10 } }, gridBody)),
         pop);
