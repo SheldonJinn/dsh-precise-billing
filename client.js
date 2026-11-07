@@ -1140,10 +1140,10 @@ window.__ModuleLoader__.load({
     }
 
     function UsageStatCard({ label, value, hint }) {
-      return h('div', { style: usagePanelStyles.card },
-        h('div', { style: usagePanelStyles.cardLabel }, label),
-        h('div', { style: usagePanelStyles.cardValue }, value),
-        hint ? h('div', { style: usagePanelStyles.cardHint }, hint) : null);
+      return h('div', { style: { ...usagePanelStyles.card, textAlign: 'center' } },
+        h('div', { style: { ...usagePanelStyles.cardLabel, justifyContent: 'center' } }, label),
+        h('div', { style: { ...usagePanelStyles.cardValue, textAlign: 'center' } }, value),
+        hint ? h('div', { style: { ...usagePanelStyles.cardHint, textAlign: 'center' } }, hint) : null);
     }
 
     function UsageModelBars({ models }) {
