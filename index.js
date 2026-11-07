@@ -55,8 +55,8 @@ const DEFAULT_SETTINGS = {
   sidebarPeak: true,
   sidebarProgress: true,
   pollMs: 60000,
-  chipPollMs: 10000,
-  sidebarPollMs: 30000,
+  chipPollMs: 60000,
+  sidebarPollMs: 60000,
   amountSource: 'local', // local | official
   custom: { a1: true, a2: true, a3: true, a4: true, b1: true, b2: true, b3: true, b4: true, c1: true, c2: true, d1: true, d2: true, d3: true, d4: true, d5: true, d6: true },
 };
