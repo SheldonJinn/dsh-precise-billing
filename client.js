@@ -1677,7 +1677,7 @@ window.__ModuleLoader__.load({
             boxSizing: 'border-box',
             padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
-            border: isToday ? '1.5px solid #2f6fed' : empty ? 'none' : '1px solid rgba(47,111,237,.14)',
+            border: isToday ? '1.5px solid #2f6fed' : empty ? '1px solid rgba(0,0,0,.09)' : '1px solid rgba(47,111,237,.14)',
             background: heat,
             boxShadow: hoverKey === cell.key ? '0 6px 16px rgba(0,0,0,.10)' : 'none',
             transform: hoverKey === cell.key ? 'translateY(-1px)' : 'none',
@@ -1690,7 +1690,7 @@ window.__ModuleLoader__.load({
         },
           (cell.label || cell.sub)
             ? h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, minWidth: 0 } },
-                h('span', { style: { fontSize: big ? 13.5 : mini ? 9.5 : 10.5, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)' } }, cell.label),
+                h('span', { style: { fontSize: big ? 15 : mini ? 11.5 : 13, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)' } }, cell.label),
                 h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, cell.sub))
             : null,
           h('div', { style: { fontSize: big ? 18 : mini ? 14 : 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
@@ -1782,7 +1782,7 @@ window.__ModuleLoader__.load({
           style: {
             height: 118, boxSizing: 'border-box', borderRadius: 10,
             border: '1px solid rgba(0,0,0,.05)', background: 'transparent',
-            padding: '8px 10px', color: 'rgba(0,0,0,.32)', fontSize: 10.5, fontWeight: 600,
+            padding: '8px 10px', color: 'rgba(0,0,0,.38)', fontSize: 12, fontWeight: 600,
             userSelect: 'none', display: 'flex', flexDirection: 'column', gap: 3,
           },
         }, cell.label);
@@ -1801,7 +1801,7 @@ window.__ModuleLoader__.load({
       const headerRow = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 } },
         dimPills,
         h('div', { style: { flex: '1 1 160px', textAlign: 'center', minWidth: 140 } },
-          h('span', { style: { fontSize: 16, fontWeight: 700, letterSpacing: 0.2 } }, calendar.title)),
+          h('span', { style: { fontSize: 20, fontWeight: 800, letterSpacing: 0.2 } }, calendar.title)),
         navButton('‹', () => shift(-1), '上一期'),
         navButton('›', () => shift(1), '下一期'),
         h('button', {
