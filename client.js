@@ -1646,7 +1646,8 @@ window.__ModuleLoader__.load({
         const big = variant === 'month';
         const mini = variant === 'year';
         const level = levelOf(cell.tokens);
-        const heat = empty ? 'transparent' : 'rgba(47,111,237,' + [0, 0.035, 0.06, 0.095, 0.14][level] + ')';
+        const heatColors = ['#ffffff', '#f6f9ff', '#edf3fe', '#e2ecfd', '#d3e1fb'];
+        const heat = empty ? 'transparent' : heatColors[level];
         const title = (cell.label || cell.sub ? (cell.label + ' ' + (cell.sub || '')).trim() + '\n' : '') +
           'Tokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次\n' +
           '总额 ' + money2(cell.cost) + '（峰时 ' + money2(cell.peakCost) + ' / 闲时 ' + money2(cell.offPeakCost) + '）';
@@ -1663,7 +1664,7 @@ window.__ModuleLoader__.load({
             boxSizing: 'border-box',
             padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
-            border: isToday ? '1.5px solid #2f6fed' : '1px solid rgba(0,0,0,.06)',
+            border: isToday ? '1.5px solid #2f6fed' : empty ? 'none' : '1px solid rgba(0,0,0,.05)',
             background: heat,
             boxShadow: hoverKey === cell.key ? '0 6px 16px rgba(0,0,0,.10)' : 'none',
             transform: hoverKey === cell.key ? 'translateY(-1px)' : 'none',
@@ -1688,7 +1689,7 @@ window.__ModuleLoader__.load({
             splitRow('闲时', cell.offPeakCost, OFF_COLOR, big ? 10.5 : mini ? 9.5 : 10)));
       };
 
-      const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, border: '1px dashed rgba(0,0,0,.07)' } });
+      const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box' } });
 
       const dimPills = h('div', { style: { display: 'inline-flex', padding: 2, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.04))' } },
         [['day', '按日'], ['week', '按周'], ['month', '按月'], ['year', '按年']].map(([value, label]) => h('button', {
@@ -1871,7 +1872,7 @@ window.__ModuleLoader__.load({
           : node;
       })() : null;
 
-      return h('div', null, stickyHead, gridBody, pop);
+      return h('div', null, stickyHead, h('div', { style: { background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.03))', borderRadius: 12, padding: 10 } }, gridBody), pop);
     }
 
     function UsageHost(props) {
