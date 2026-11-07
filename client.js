@@ -1886,7 +1886,7 @@ function closeIcon(size = 14) {
                   alignItems: 'baseline', justifyContent: 'center', gap: dim === 'week' ? 1 : 4, minWidth: 0, textAlign: 'center',
                 },
               },
-                h('span', { style: { fontSize: big ? 17 : mini ? 13 : 16, fontWeight: big ? 700 : 600, color: 'var(--dsw-alias-label-primary, #111)', whiteSpace: 'nowrap', textAlign: 'center' } }, cell.label),
+                h('span', { style: { fontSize: big ? 17 : mini ? 13 : 16, fontWeight: big ? 700 : 600, color: dim === 'week' && !isToday ? MUTED : 'var(--dsw-alias-label-primary, #111)', whiteSpace: 'nowrap', textAlign: 'center' } }, cell.label),
                 isToday
                   ? h('span', {
                       style: {
