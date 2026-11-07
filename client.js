@@ -1739,6 +1739,28 @@ window.__ModuleLoader__.load({
           calendar.cells.map((cell, index) => (cell ? cellCard(cell, 'month') : emptyTile('blank-' + index, 104))));
       }
 
+      const headerRow = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 } },
+        dimPills,
+        h('div', { style: { flex: '1 1 160px', textAlign: 'center', minWidth: 140 } },
+          h('span', { style: { fontSize: 16, fontWeight: 700, letterSpacing: 0.2 } }, calendar.title)),
+        navButton('‹', () => shift(-1), '上一期'),
+        navButton('›', () => shift(1), '下一期'),
+        h('button', {
+          type: 'button',
+          onClick: () => { setAnchor({ year: today.getFullYear(), month: today.getMonth() + 1 }); setDetail(null); },
+          style: { padding: '5px 12px', fontSize: 11.5, borderRadius: 8, border: '1px solid rgba(0,0,0,.10)', background: 'transparent', cursor: 'pointer', color: 'inherit' },
+        }, '今天'),
+        officialNeedsLocal ? h('span', { style: { fontSize: 10, color: MUTED } }, '峰/闲取自本地日志') : null,
+        state.status === 'loading' ? h('span', { style: { fontSize: 10.5, color: MUTED } }, '加载中…') : null);
+
+      const stickyHead = h('div', {
+        style: {
+          position: 'sticky', top: 0, zIndex: 5, margin: '0 -16px', padding: '4px 16px 8px',
+          background: 'var(--dsw-alias-bg-layer-1, #fff)',
+          borderBottom: '1px solid rgba(0,0,0,.05)',
+        },
+      }, headerRow, totalStrip);
+
       React.useEffect(() => {
         if (!detail) return undefined;
         const onDown = (event) => {
