@@ -2384,6 +2384,7 @@ function closeIcon(size = 14) {
       const state = useSummary(undefined, 'sidebarPollMs');
       const accountState = useAccount();
       const [now, setNow] = React.useState(Date.now());
+
       React.useEffect(() => {
         const timer = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(timer);
@@ -2513,6 +2514,21 @@ function closeIcon(size = 14) {
       const summary = useSummary(undefined, 'sidebarPollMs');
       const accountState = useAccount();
 
+      const draftRef = React.useRef(null);
+      const saveRef = React.useRef(null);
+      const autoTimer = React.useRef(null);
+      const toastTimer = React.useRef(null);
+      const [toast, setToast] = React.useState('');
+
+      React.useEffect(() => {
+        if (!dirty) return undefined;
+        if (autoTimer.current) clearTimeout(autoTimer.current);
+        autoTimer.current = setTimeout(() => {
+          if (saveRef.current) saveRef.current(draftRef.current);
+        }, 600);
+        return () => { if (autoTimer.current) clearTimeout(autoTimer.current); };
+      }, [draft, dirty]);
+
       React.useEffect(() => {
         const timer = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(timer);
@@ -2577,9 +2593,19 @@ function closeIcon(size = 14) {
           setDraft({ ...DEFAULT_SETTINGS, ...out.settings });
           setDirty(false);
           setSaved('已保存 ' + new Date().toLocaleTimeString());
+        notify('设置已自动保存');
         } catch (error) {
           setSaved('保存失败：' + String(error.message || error));
+        notify('保存失败');
         }
+      };
+
+      draftRef.current = draft;
+      saveRef.current = save;
+      const notify = (text) => {
+        setToast(text);
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        toastTimer.current = setTimeout(() => setToast(''), 1800);
       };
 
       const reset = () => {
@@ -2596,6 +2622,7 @@ function closeIcon(size = 14) {
       const sidebarHidden = draft.sidebar === false;
 
       return h('div', { className: 'pb-settings', style: { padding: '2px 2px 24px', maxWidth: 760 } },
+        toast ? h('div', { className: 'pb-toast', style: { position: 'fixed', right: 24, bottom: 24, zIndex: 9999, background: 'rgba(20,20,22,.9)', color: '#fff', fontSize: 12, padding: '8px 14px', borderRadius: 8, boxShadow: '0 6px 18px rgba(0,0,0,.22)' } }, toast) : null,
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 } },
           h('div', null,
             h('h2', { style: { fontSize: 17, margin: '0 0 3px', color: 'var(--dsw-alias-label-primary, #111)' } }, '精确计费'),
