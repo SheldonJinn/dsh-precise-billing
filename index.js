@@ -17,6 +17,7 @@
  */
 import fs from 'node:fs';
 import os from 'node:os';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { zstdDecompressSync } from 'node:zlib';
 
@@ -1269,6 +1270,44 @@ export async function readAccount(ctx) {
   }
 }
 
+
+/** 热重启：把助手交给 Explorer 启动，避免被 DSH 的 job object 一起杀掉。 */
+let lastRestartAt = 0;
+function desktopExePath() {
+  const candidates = [
+    process.env.DSH_DESKTOP_EXE,
+    process.execPath && /DeepSeek Harness\.exe$/i.test(process.execPath) ? process.execPath : '',
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'DeepSeek Harness', 'DeepSeek Harness.exe'),
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try { if (fs.existsSync(candidate)) return candidate; } catch { /* ignore */ }
+  }
+  return '';
+}
+
+function scheduleHotRestart() {
+  const exe = desktopExePath();
+  if (!exe) throw new Error('找不到 DeepSeek Harness 可执行文件');
+  const dir = os.tmpdir();
+  const stamp = Date.now();
+  const script = path.join(dir, 'pb-restart-' + stamp + '.ps1');
+  const wrapper = path.join(dir, 'pb-restart-' + stamp + '.vbs');
+  const quoted = "'" + exe.replace(/'/g, "''") + "'";
+  fs.writeFileSync(script, [
+    'Start-Sleep -Milliseconds 1200',
+    "Get-Process -Name 'DeepSeek Harness' -ErrorAction SilentlyContinue | Stop-Process -Force",
+    'Start-Sleep -Milliseconds 3500',
+    'Start-Process -FilePath ' + quoted + ' -WindowStyle Maximized',
+  ].join('\r\n'), 'utf8');
+  fs.writeFileSync(wrapper, [
+    'Set sh = CreateObject("WScript.Shell")',
+    'sh.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""' + script + '""", 0, False',
+  ].join('\r\n'), 'utf8');
+  const child = spawn('explorer.exe', [wrapper], { detached: true, stdio: 'ignore', windowsHide: true });
+  child.unref();
+  return { exe, at: stamp };
+}
+
 export function apply(ctx) {
   const dispose = ctx.webServer.register({
     path: '/api/precise-billing',
@@ -1302,7 +1341,20 @@ export function apply(ctx) {
           return;
         }
 
-        if (pathname === '/api/precise-billing/session') {
+        if (pathname === '/api/precise-billing/restart') {
+      if (req.method !== 'POST') { sendJson(res, 405, { ok: false, error: 'method not allowed' }); return; }
+      if (Date.now() - lastRestartAt < 15000) { sendJson(res, 429, { ok: false, error: '刚重启过，请稍等几秒' }); return; }
+      try {
+        const info = scheduleHotRestart();
+        lastRestartAt = Date.now();
+        sendJson(res, 200, { ok: true, exe: info.exe });
+      } catch (error) {
+        sendJson(res, 500, { ok: false, error: String((error && error.message) || error) });
+      }
+      return;
+    }
+
+    if (pathname === '/api/precise-billing/session') {
           const id = url.searchParams.get('session');
           if (!id) { sendJson(res, 400, { ok: false, error: 'session required' }); return; }
           const detail = sessionSummary(id);
