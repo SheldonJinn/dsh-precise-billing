@@ -1,9 +1,9 @@
 {
   "name": "@local/precise-billing",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "按 DeepSeek 官方人民币价目逐请求精确计算会话费用（峰谷时段、法定节假日），提供费用条、侧栏卡片、用量看板与热重启按钮",
+  "description": "按 DeepSeek 官方人民币价目逐请求精确计算会话费用（峰谷时段、法定节假日），提供费用条、侧栏卡片、用量看板与一键热重启",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
@@ -17,7 +17,8 @@
     "cordis.patch.yml",
     "README.md",
     "locale/*.json",
-    "CREDITS.md"
+    "CREDITS.md",
+    "docs"
   ],
   "dsh": {
     "bundle": {
@@ -56,5 +57,6 @@
       "repository": "https://github.com/YuMS/dsh-duet",
       "note": "仅做过语音交互调研，本插件未使用其代码"
     }
-  ]
+  ],
+  "author": "Sheldon Jinn"
 }
