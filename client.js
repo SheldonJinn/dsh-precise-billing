@@ -2096,7 +2096,7 @@ function closeIcon(size = 14) {
         'font-size:clamp(9px,10cqw,12px);font-variant-numeric:tabular-nums;white-space:nowrap;-webkit-font-smoothing:antialiased}',
 
         '.pb-gear{transition:opacity .15s ease}.pb-gear:hover{opacity:1 !important}',
-        '.pb-side-actions{opacity:0;pointer-events:none;transition:opacity .14s ease}',
+        '.pb-side-actions{opacity:1;pointer-events:auto;transition:opacity .14s ease}',
         '.pb-side-card:hover .pb-side-actions{opacity:1;pointer-events:auto}',
         '.pb-field{transition:background .12s ease;border-radius:4px}.pb-field:hover{background:rgba(0,0,0,.04)}',
         '@keyframes pb-today-pulse{0%,100%{opacity:1}50%{opacity:.5}}',
