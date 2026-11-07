@@ -2467,9 +2467,9 @@ function closeIcon(size = 14) {
       }, option.label)));
     }
 
-    function Check({ label, checked, onChange, flush }) {
-      return h('label', { style: { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, marginLeft: flush ? 0 : 14, cursor: 'pointer' } },
-        h('input', { type: 'checkbox', checked, onChange: (e) => onChange(e.target.checked), style: { margin: 0, flex: '0 0 auto' } }),
+    function Check({ label, checked, onChange, flush, disabled }) {
+      return h('label', { style: { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, marginLeft: flush ? 0 : 14, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1 } },
+        h('input', { type: 'checkbox', checked, disabled: disabled === true, onChange: (e) => onChange(e.target.checked), style: { margin: 0, flex: '0 0 auto' } }),
         label);
     }
 
@@ -2534,8 +2534,26 @@ function closeIcon(size = 14) {
         setDirty(true);
       };
 
+      const CUSTOM_DEPENDENTS = ['b2', 'b3', 'b4'];
+      const customIsOn = (custom, key) => {
+        if (custom[key] === false) return false;
+        if (CUSTOM_DEPENDENTS.includes(key) && custom.b1 === false) return false;
+        return true;
+      };
       const setCustom = (key, value) => {
-        setDraft((prev) => ({ ...prev, custom: { ...(prev.custom || {}), [key]: value } }));
+        setDraft((prev) => {
+          const custom = { ...(prev.custom || {}), [key]: value };
+          if (key === 'b1' && value === false) {
+            for (const dep of CUSTOM_DEPENDENTS) custom[dep] = false;
+          }
+          const keys = ['a1', 'a2', 'a3', 'a4', 'b1', 'b2', 'b3', 'b4', 'c1', 'c2', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6'];
+          const active = keys.filter((k) => customIsOn(custom, k)).length;
+          if (active === 0) {
+            if (key === 'b1') custom.b1 = true;
+            else return prev;
+          }
+          return { ...prev, custom };
+        });
         setDirty(true);
       };
 
@@ -2677,9 +2695,9 @@ function closeIcon(size = 14) {
                   h('div', { style: { fontSize: 11, color: MUTED, marginTop: 4 } }, '进度条'),
                   h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, width: '100%' } },
                     h(Check, { label: '进度条', flush: true, checked: draft.custom.b1 !== false, onChange: (v) => setCustom('b1', v) }),
-                    h(Check, { label: '刻度线', flush: true, checked: draft.custom.b2 !== false, onChange: (v) => setCustom('b2', v) }),
-                    h(Check, { label: '游标', flush: true, checked: draft.custom.b3 !== false, onChange: (v) => setCustom('b3', v) }),
-                    h(Check, { label: '悬浮提示', flush: true, checked: draft.custom.b4 !== false, onChange: (v) => setCustom('b4', v) })),
+                    h(Check, { label: '刻度线', flush: true, disabled: draft.custom.b1 === false, checked: draft.custom.b1 !== false && draft.custom.b2 !== false, onChange: (v) => setCustom('b2', v) }),
+                    h(Check, { label: '游标', flush: true, disabled: draft.custom.b1 === false, checked: draft.custom.b1 !== false && draft.custom.b3 !== false, onChange: (v) => setCustom('b3', v) }),
+                    h(Check, { label: '悬浮提示', flush: true, disabled: draft.custom.b1 === false, checked: draft.custom.b1 !== false && draft.custom.b4 !== false, onChange: (v) => setCustom('b4', v) })),
                   h('div', { style: { fontSize: 11, color: MUTED, marginTop: 4 } }, '百分比'),
                   h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, width: '100%' } },
                     h(Check, { label: '已过', flush: true, checked: draft.custom.c1 !== false, onChange: (v) => setCustom('c1', v) }),
