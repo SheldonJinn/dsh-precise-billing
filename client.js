@@ -375,7 +375,7 @@ window.__ModuleLoader__.load({
           padding: '12px 14px',
           borderRadius: 10,
           background: 'var(--dsw-alias-bg-layer-1, #fff)',
-          border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12))',
+          border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.18))',
           boxShadow: '0 10px 30px rgba(0,0,0,.18)',
           color: 'var(--dsw-alias-label-secondary, #555)',
           fontSize: 12,
@@ -494,7 +494,7 @@ window.__ModuleLoader__.load({
           background: options.active || options.hovered
             ? 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.07))'
             : 'var(--dsw-alias-bg-layer-1, rgba(0,0,0,.03))',
-          border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
+          border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.14))',
           whiteSpace: 'nowrap',
           userSelect: 'none',
           cursor: options.onClick ? 'pointer' : 'default',
@@ -822,7 +822,7 @@ window.__ModuleLoader__.load({
         h('div', { key: step }, axisMoney((max * step) / 4)));
 
       const gridLines = [1, 2, 3, 4].map((step) =>
-        h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
+        h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.13)' } }));
 
       const singleModel = names.length <= 1;
       const bars = series.map((item, index) => {
@@ -848,7 +848,7 @@ window.__ModuleLoader__.load({
         }, bar);
       });
 
-      const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.12)', borderBottom: '1px solid rgba(0,0,0,.12)' } },
+      const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.18)', borderBottom: '1px solid rgba(0,0,0,.18)' } },
         gridLines,
         h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 6 } }, bars));
 
@@ -913,7 +913,7 @@ window.__ModuleLoader__.load({
       const areaPath = linePath + ' L' + px(values.length - 1) + ',' + height + ' L0,' + height + ' Z';
 
       const grid = [1, 2, 3, 4].map((k) =>
-        h('div', { key: k, style: { position: 'absolute', left: 0, right: 0, bottom: k * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
+        h('div', { key: k, style: { position: 'absolute', left: 0, right: 0, bottom: k * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.13)' } }));
 
       const hoverRects = values.map((value, index) => {
         const rect = h('rect', { x: px(index), y: 0, width: Math.max(1, step), height: height, fill: 'transparent' });
@@ -929,7 +929,7 @@ window.__ModuleLoader__.load({
         h('path', { d: linePath, fill: 'none', stroke: '#2f6fed', strokeWidth: 2, vectorEffect: 'non-scaling-stroke', strokeLinejoin: 'round' }),
         hoverRects);
 
-      const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.12)', borderBottom: '1px solid rgba(0,0,0,.12)' } }, grid, svg);
+      const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.18)', borderBottom: '1px solid rgba(0,0,0,.18)' } }, grid, svg);
 
       const axisSlots = labels.map((label, index) => {
         if (singleDay) return label;
@@ -953,7 +953,7 @@ window.__ModuleLoader__.load({
       for (const model of prevModels || []) prevMap[model.model] = model;
       const cell = { padding: '3px 0', fontSize: 11.5 };
       return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } },
-        h('div', { style: { display: 'flex', gap: 8, fontSize: 10.5, color: MUTED, paddingBottom: 3, borderBottom: '1px solid rgba(0,0,0,.06)' } },
+        h('div', { style: { display: 'flex', gap: 8, fontSize: 10.5, color: MUTED, paddingBottom: 3, borderBottom: '1px solid rgba(0,0,0,.12)' } },
           h('span', { style: { flex: '1 1 0' } }, '模型'),
           h('span', { style: { width: 86, textAlign: 'right' } }, '变化'),
           h('span', { style: { width: 92, textAlign: 'right' } }, '金额'),
@@ -972,7 +972,7 @@ window.__ModuleLoader__.load({
             changeText = '新增';
             changeColor = '#c0392b';
           }
-          return h('div', { key: model.model, style: { display: 'flex', gap: 8, alignItems: 'baseline', padding: '3px 0', borderBottom: '1px solid rgba(0,0,0,.04)' } },
+          return h('div', { key: model.model, style: { display: 'flex', gap: 8, alignItems: 'baseline', padding: '3px 0', borderBottom: '1px solid rgba(0,0,0,.10)' } },
             h('span', { style: { ...cell, flex: '1 1 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, model.model),
             h('span', { style: { ...cell, width: 86, textAlign: 'right', color: changeColor } }, changeText),
             h('span', { style: { ...cell, width: 92, textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }, fmtMoneyCn(model.cost)),
@@ -1030,7 +1030,7 @@ window.__ModuleLoader__.load({
       const height = 96;
       const axisText = (value) => (metric === 'requests' ? fmtNumberCn(value) : fmtNumberCn(value));
       const gridLines = [1, 2, 3, 4].map((step) =>
-        h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.07)' } }));
+        h('div', { key: step, style: { position: 'absolute', left: 0, right: 0, bottom: step * 25 + '%', borderTop: '1px dashed rgba(0,0,0,.13)' } }));
       const bars = series.map((item, index) => {
         const stack = names
           .filter((name) => item.parts[name])
@@ -1049,7 +1049,7 @@ window.__ModuleLoader__.load({
           style: { flex: '1 1 0', height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', minWidth: 2 },
         }, bar);
       });
-      const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.12)', borderBottom: '1px solid rgba(0,0,0,.12)' } },
+      const plot = h('div', { style: { position: 'relative', height: height, borderLeft: '1px solid rgba(0,0,0,.18)', borderBottom: '1px solid rgba(0,0,0,.18)' } },
         gridLines,
         h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 6 } }, bars));
       const xAxis = h('div', { style: { display: 'flex', fontSize: singleDay || series.length > 10 ? 8 : 9.5, color: MUTED, marginTop: 3 } },
@@ -1083,14 +1083,14 @@ window.__ModuleLoader__.load({
         h('button', {
           type: 'button',
           onClick: () => setOpen(!open),
-          style: { width: '100%', textAlign: 'left', fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit', cursor: 'pointer' },
+          style: { width: '100%', textAlign: 'left', fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(0,0,0,.26)', background: 'transparent', color: 'inherit', cursor: 'pointer' },
         }, (allSelected ? '全部模型（' + models.length + '）' : '已选 ' + count + ' 个模型') + ' ▾'),
         open
           ? h('div', {
               style: {
                 position: 'absolute', zIndex: 10, top: '112%', left: 0, width: 270, maxHeight: 280, overflowY: 'auto',
                 background: 'var(--dsw-alias-bg-layer-1, #fff)', color: 'inherit',
-                border: '1px solid rgba(0,0,0,.15)', borderRadius: 8, boxShadow: '0 10px 26px rgba(0,0,0,.18)', padding: 8,
+                border: '1px solid rgba(0,0,0,.21)', borderRadius: 8, boxShadow: '0 10px 26px rgba(0,0,0,.24)', padding: 8,
               },
             },
               h('div', { style: { display: 'flex', gap: 8, marginBottom: 6, fontSize: 11 } },
@@ -1120,7 +1120,7 @@ window.__ModuleLoader__.load({
         height: 'min(90vh, 900px)',
         background: 'var(--dsw-alias-bg-layer-1, #ffffff)',
         color: 'var(--dsw-alias-label-primary, #111)',
-        border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12))',
+        border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.18))',
         borderRadius: 12,
         boxShadow: '0 18px 48px rgba(0,0,0,.22)',
         display: 'flex',
@@ -1134,9 +1134,9 @@ window.__ModuleLoader__.load({
         justifyContent: 'space-between',
         gap: 12,
         padding: '12px 16px',
-        borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
+        borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.14))',
       },
-      tabs: { display: 'flex', gap: 18, padding: '0 16px', borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))' },
+      tabs: { display: 'flex', gap: 18, padding: '0 16px', borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.14))' },
       controls: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 16px', minHeight: 50, boxSizing: 'border-box' },
       body: { flex: '1 1 auto', overflowY: 'auto', padding: '4px 16px 26px' },
       cards: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, margin: '10px 0 14px' },
@@ -1144,14 +1144,14 @@ window.__ModuleLoader__.load({
         padding: '10px 12px',
         borderRadius: 10,
         background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.03))',
-        border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.06))',
+        border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12))',
         minWidth: 0,
       },
       cardLabel: { fontSize: 11, color: MUTED, display: 'flex', alignItems: 'center', gap: 4 },
       cardValue: { fontSize: 20, fontWeight: 700, marginTop: 4, lineHeight: 1.2 },
       cardHint: { fontSize: 10.5, color: MUTED, marginTop: 3 },
       section: {
-        border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.08))',
+        border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.14))',
         borderRadius: 10,
         padding: '10px 12px',
         marginBottom: 12,
@@ -1351,7 +1351,7 @@ window.__ModuleLoader__.load({
         background: active ? 'rgba(47,111,237,.12)' : 'transparent',
         color: active ? '#2f6fed' : 'inherit', fontWeight: active ? 600 : 400,
       });
-      const groupStyle = { display: 'inline-flex', border: '1px solid rgba(0,0,0,.2)', borderRadius: 6, overflow: 'hidden' };
+      const groupStyle = { display: 'inline-flex', border: '1px solid rgba(0,0,0,.26)', borderRadius: 6, overflow: 'hidden' };
 
       return ReactDOM.createPortal(
         h('div', { style: usagePanelStyles.overlay, onMouseDown: (event) => { if (event.target === event.currentTarget) setUsageOpen(false); } },
@@ -1365,10 +1365,10 @@ window.__ModuleLoader__.load({
                   value: autoSec,
                   onChange: (event) => setAutoSec(Number(event.target.value)),
                   title: '自动刷新',
-                  style: { fontSize: 11.5, padding: '5px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' },
+                  style: { fontSize: 11.5, padding: '5px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.26)', background: 'transparent', color: 'inherit' },
                 }, AUTO_REFRESH_OPTIONS.map(([value, label]) => h('option', { key: value, value }, label))),
-                h('button', { type: 'button', onClick: () => reload(), style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.16)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '刷新'),
-                h('button', { type: 'button', onClick: () => setUsageOpen(false), style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.16)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '关闭'))),
+                h('button', { type: 'button', onClick: () => reload(), style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.22)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '刷新'),
+                h('button', { type: 'button', onClick: () => setUsageOpen(false), style: { padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid rgba(0,0,0,.22)', background: 'transparent', cursor: 'pointer', color: 'inherit' } }, '关闭'))),
             h('div', { style: usagePanelStyles.tabs },
               ['trend', 'calendar'].map((key) => h('button', {
                 key,
@@ -1386,13 +1386,13 @@ window.__ModuleLoader__.load({
                 value: rangeKey,
                 onChange: (event) => setRangeKey(event.target.value),
                 title: tab === 'calendar' ? '趋势页的时间范围（日历页用下方年月导航）' : '时间范围',
-                style: { flex: '1 1 170px', fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit', minWidth: 132, opacity: tab === 'calendar' ? 0.55 : 1 },
+                style: { flex: '1 1 170px', fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.26)', background: 'transparent', color: 'inherit', minWidth: 132, opacity: tab === 'calendar' ? 0.55 : 1 },
               }, USAGE_RANGES.concat([{ value: 'custom', label: '自定义' }]).map((item) => h('option', { key: item.value, value: item.value }, item.label))),
               tab === 'trend' && rangeKey === 'custom'
                 ? h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5 } },
-                    h('input', { type: 'date', value: customFrom, onChange: (event) => setCustomFrom(event.target.value), style: { fontSize: 11.5, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' } }),
+                    h('input', { type: 'date', value: customFrom, onChange: (event) => setCustomFrom(event.target.value), style: { fontSize: 11.5, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.26)', background: 'transparent', color: 'inherit' } }),
                     h('span', null, '~'),
-                    h('input', { type: 'date', value: customTo, onChange: (event) => setCustomTo(event.target.value), style: { fontSize: 11.5, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.2)', background: 'transparent', color: 'inherit' } }),
+                    h('input', { type: 'date', value: customTo, onChange: (event) => setCustomTo(event.target.value), style: { fontSize: 11.5, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.26)', background: 'transparent', color: 'inherit' } }),
                     h('button', {
                       type: 'button',
                       onClick: () => setAppliedCustom({ from: customFrom, to: customTo < customFrom ? customFrom : customTo }),
@@ -1752,7 +1752,7 @@ window.__ModuleLoader__.load({
             boxSizing: 'border-box',
             padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
-            border: isToday ? '1.5px solid #2f6fed' : '1px solid rgba(0,0,0,.08)',
+            border: isToday ? '1.5px solid #2f6fed' : '1px solid rgba(0,0,0,.14)',
             background: heat,
             boxShadow: hoverKey === cell.key ? '0 6px 16px rgba(0,0,0,.10)' : 'none',
             transform: hoverKey === cell.key ? 'translateY(-1px)' : 'none',
@@ -1797,7 +1797,7 @@ window.__ModuleLoader__.load({
             splitRow('闲时', cell.offPeakCost, OFF_COLOR, big ? 10.5 : mini ? 9.5 : 10)));
       };
 
-      const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, background: 'transparent', border: '1px dashed rgba(0,0,0,.10)' } });
+      const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, background: 'transparent', border: '1px dashed rgba(0,0,0,.16)' } });
 
       const dimPills = h('div', { style: { display: 'inline-flex', padding: 2, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,.04))' } },
         [['day', '按日'], ['week', '按周'], ['month', '按月'], ['year', '按年']].map(([value, label]) => h('button', {
@@ -1815,7 +1815,7 @@ window.__ModuleLoader__.load({
 
       const navButton = (label, onClick, title) => h('button', {
         type: 'button', onClick, title,
-        style: { width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(0,0,0,.08)', background: 'transparent', cursor: 'pointer', color: 'inherit', fontSize: 13, lineHeight: 1 },
+        style: { width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(0,0,0,.14)', background: 'transparent', cursor: 'pointer', color: 'inherit', fontSize: 13, lineHeight: 1 },
       }, label);
 
       const totalStrip = h('div', {
@@ -1872,7 +1872,7 @@ window.__ModuleLoader__.load({
             return h('div', {
               key: 'year-' + row.label,
               style: {
-                border: '1px solid rgba(0,0,0,.07)',
+                border: '1px solid rgba(0,0,0,.13)',
                 borderRadius: 12,
                 padding: '12px 14px',
                 background: 'transparent',
@@ -1887,7 +1887,7 @@ window.__ModuleLoader__.load({
                       title: expanded ? '收起月份' : '展开月份',
                       onClick: () => setExpandedYears({ ...expandedYears, [row.label]: !expanded }),
                       style: {
-                        width: 24, height: 24, borderRadius: 8, border: '1px solid rgba(0,0,0,.12)',
+                        width: 24, height: 24, borderRadius: 8, border: '1px solid rgba(0,0,0,.18)',
                         background: 'transparent', cursor: 'pointer', color: 'inherit', fontSize: 14, lineHeight: 1,
                       },
                     }, expanded ? '−' : '+')),
@@ -1900,7 +1900,7 @@ window.__ModuleLoader__.load({
                 ? h('div', {
                     style: {
                       display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8,
-                      marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,.05)',
+                      marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,.11)',
                     },
                   },
                     months.map((cell) => cellCard(cell, 'year')))
@@ -1933,7 +1933,7 @@ window.__ModuleLoader__.load({
           key: cell.key,
           style: {
             height: 120, boxSizing: 'border-box', borderRadius: 10,
-            border: '1px solid rgba(0,0,0,.05)', background: 'transparent',
+            border: '1px solid rgba(0,0,0,.11)', background: 'transparent',
             padding: '8px 10px', color: 'rgba(0,0,0,.38)', fontSize: 12, fontWeight: 600,
             userSelect: 'none', display: 'flex', flexDirection: 'column', gap: 3,
           },
@@ -1959,12 +1959,12 @@ window.__ModuleLoader__.load({
         h('button', {
           type: 'button',
           onClick: () => { setAnchor({ year: today.getFullYear(), month: today.getMonth() + 1 }); setDetail(null); },
-          style: { padding: '5px 12px', fontSize: 11.5, borderRadius: 8, border: '1px solid rgba(0,0,0,.10)', background: 'transparent', cursor: 'pointer', color: 'inherit' },
+          style: { padding: '5px 12px', fontSize: 11.5, borderRadius: 8, border: '1px solid rgba(0,0,0,.16)', background: 'transparent', cursor: 'pointer', color: 'inherit' },
         }, dim === 'day' ? '今天' : dim === 'week' ? '本周' : dim === 'month' ? '本月' : '今年'),
         officialNeedsLocal ? h('span', { style: { fontSize: 10, color: MUTED } }, '峰/闲取自本地日志') : null,
         state.status === 'loading' ? h('span', { style: { fontSize: 10.5, color: MUTED } }, '加载中…') : null);
 
-      const head = h('div', { style: { padding: '2px 2px 8px', borderBottom: '1px solid rgba(0,0,0,.05)', flex: '0 0 auto' } }, headerRow, totalStrip);
+      const head = h('div', { style: { padding: '2px 2px 8px', borderBottom: '1px solid rgba(0,0,0,.11)', flex: '0 0 auto' } }, headerRow, totalStrip);
 
       React.useEffect(() => {
         if (!detail) return undefined;
@@ -1999,7 +1999,7 @@ window.__ModuleLoader__.load({
         const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(cell.key || ''));
         const title = dateMatch ? Number(dateMatch[2]) + '月' + Number(dateMatch[3]) + '日' : (cell.label || cell.key);
         const row = (label, value, color) => h('div', {
-          style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px solid rgba(0,0,0,.05)' },
+          style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px solid rgba(0,0,0,.11)' },
         },
           h('span', { style: { fontSize: 11.5, color: MUTED } }, label),
           h('span', { style: { fontSize: 12, fontWeight: 600, color: color || 'var(--dsw-alias-label-primary, #111)', fontVariantNumeric: 'tabular-nums' } }, value));
@@ -2016,7 +2016,7 @@ window.__ModuleLoader__.load({
             position: 'fixed', left, top, width: popWidth, zIndex: 5000,
             background: 'var(--dsw-alias-bg-layer-1, #fff)',
             color: 'var(--dsw-alias-label-primary, #111)',
-            border: '1px solid rgba(0,0,0,.12)', borderRadius: 12,
+            border: '1px solid rgba(0,0,0,.18)', borderRadius: 12,
             boxShadow: '0 18px 44px rgba(0,0,0,.24)', padding: '12px 16px 10px',
             fontSize: 12,
           },
@@ -2036,7 +2036,7 @@ window.__ModuleLoader__.load({
           row('输出', full(t4.output)),
           row('Token 合计', full(cell.tokens)),
           cell.models.length > 0
-            ? h('div', { style: { marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(0,0,0,.05)' } },
+            ? h('div', { style: { marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(0,0,0,.11)' } },
                 cell.models.slice().sort((a, b) => b.cost - a.cost).map(modelLine))
             : null);
         return ReactDOM && typeof ReactDOM.createPortal === 'function' && typeof document !== 'undefined'
@@ -2377,7 +2377,7 @@ window.__ModuleLoader__.load({
       fontSize: 12,
       padding: '5px 8px',
       borderRadius: 6,
-      border: '1px solid rgba(0,0,0,.30)',
+      border: '1px solid rgba(0,0,0,.36)',
       background: 'var(--dsw-alias-bg-layer-1, #fff)',
       color: 'var(--dsw-alias-label-primary, #111)',
       width: 160,
@@ -2387,7 +2387,7 @@ window.__ModuleLoader__.load({
     function Section({ title, desc, children, extra }) {
       return h('section', {
         style: {
-          border: '2px solid var(--dsw-alias-border-l2, rgba(0,0,0,.16))',
+          border: '2px solid var(--dsw-alias-border-l2, rgba(0,0,0,.22))',
           borderRadius: 10,
           padding: '13px 16px 6px',
           marginBottom: 12,
@@ -2415,7 +2415,7 @@ window.__ModuleLoader__.load({
           borderRadius: 4,
           transition: 'background .12s ease',
           background: hovered ? 'rgba(0,0,0,.04)' : 'transparent',
-          borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.06))',
+          borderBottom: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.12))',
         },
       },
         h('div', { style: { width: 92, flex: '0 0 92px' } },
@@ -2428,7 +2428,7 @@ window.__ModuleLoader__.load({
       return h('div', {
         style: {
           display: 'inline-flex',
-          border: '1px solid rgba(0,0,0,.30)',
+          border: '1px solid rgba(0,0,0,.36)',
           borderRadius: 7,
           overflow: 'hidden',
           background: 'transparent',
@@ -2560,7 +2560,7 @@ window.__ModuleLoader__.load({
             h('button', {
               type: 'button',
               onClick: reset,
-              style: { fontSize: 11, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.15))', background: 'transparent', color: 'var(--dsw-alias-label-primary, #111)' },
+              style: { fontSize: 11, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', border: '1px solid var(--dsw-alias-border-l1, rgba(0,0,0,.21))', background: 'transparent', color: 'var(--dsw-alias-label-primary, #111)' },
             }, '恢复默认'),
             h('button', {
               type: 'button',
@@ -2678,7 +2678,7 @@ window.__ModuleLoader__.load({
             : null,
           h(Field, { label: '预览' },
             h('div', { style: { width: '100%', display: 'flex', justifyContent: 'flex-end' } },
-              h('div', { style: { width: 300, padding: 8, borderRadius: 8, border: '1px dashed var(--dsw-alias-border-l1, rgba(0,0,0,.12))' } },
+              h('div', { style: { width: 300, padding: 8, borderRadius: 8, border: '1px dashed var(--dsw-alias-border-l1, rgba(0,0,0,.18))' } },
                 buildSidebar(draft, families, data, account, now, true))))),
 
       );
