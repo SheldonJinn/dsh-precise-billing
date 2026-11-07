@@ -1752,7 +1752,7 @@ window.__ModuleLoader__.load({
             boxSizing: 'border-box',
             padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
-            border: isToday ? '1.5px solid #2f6fed' : '1px solid rgba(0,0,0,.14)',
+            border: '1px solid rgba(0,0,0,.14)',
             background: heat,
             boxShadow: hoverKey === cell.key ? '0 6px 16px rgba(0,0,0,.10)' : 'none',
             transform: hoverKey === cell.key ? 'translateY(-1px)' : 'none',
