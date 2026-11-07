@@ -2100,8 +2100,8 @@ function closeIcon(size = 14) {
         '.pb-side-card:hover .pb-side-actions{opacity:1;pointer-events:auto}',
         '.pb-settings button{background:transparent !important;border:1px solid rgba(0,0,0,.22) !important;color:var(--dsw-alias-label-primary,#111) !important;transition:background .12s ease,color .12s ease,border-color .12s ease}',
         '.pb-settings button:hover{background:rgba(47,111,237,.12) !important;border-color:rgba(47,111,237,.38) !important}',
-        '@keyframes pb-toast-pop{0%{opacity:0;transform:scale(.92)}12%{opacity:.72;transform:scale(1)}85%{opacity:.72}100%{opacity:0}}',
-        '.pb-toast{animation:pb-toast-pop 1.8s ease forwards}',
+        '@keyframes pb-toast-pop{0%{opacity:0;transform:scale(.92)}8%{opacity:.75;transform:scale(1)}88%{opacity:.75}100%{opacity:0}}',
+        '.pb-toast{animation:pb-toast-pop 3.2s ease forwards}',
         '.pb-settings .pb-seg{border-color:rgba(0,0,0,.22) !important;background:transparent !important}',
         '.pb-settings .pb-seg button{border:none !important;border-radius:0 !important;background:transparent !important;color:var(--dsw-alias-label-primary,#111) !important}',
         '.pb-settings .pb-seg button:hover{background:rgba(47,111,237,.12) !important}',
@@ -2520,7 +2520,9 @@ function closeIcon(size = 14) {
       const saveRef = React.useRef(null);
       const autoTimer = React.useRef(null);
       const toastTimer = React.useRef(null);
+      const rootRef = React.useRef(null);
       const [toast, setToast] = React.useState('');
+      const [toastPos, setToastPos] = React.useState(null);
 
       React.useEffect(() => {
         if (!dirty) return undefined;
@@ -2605,9 +2607,19 @@ function closeIcon(size = 14) {
       draftRef.current = draft;
       saveRef.current = save;
       const notify = (text) => {
+        try {
+          const rect = rootRef.current ? rootRef.current.getBoundingClientRect() : null;
+          if (rect && rect.width > 0) {
+            const viewportMiddle = window.innerHeight / 2;
+            const y = Math.min(Math.max(rect.top + rect.height / 2, rect.top + 60), Math.min(rect.bottom - 60, viewportMiddle));
+            setToastPos({ x: rect.left + rect.width / 2, y });
+          } else {
+            setToastPos(null);
+          }
+        } catch { setToastPos(null); }
         setToast(text);
         if (toastTimer.current) clearTimeout(toastTimer.current);
-        toastTimer.current = setTimeout(() => setToast(''), 1800);
+        toastTimer.current = setTimeout(() => setToast(''), 3200);
       };
 
       const reset = () => {
@@ -2623,8 +2635,8 @@ function closeIcon(size = 14) {
       const barHidden = draft.position === 'hidden';
       const sidebarHidden = draft.sidebar === false;
 
-      return h('div', { className: 'pb-settings', style: { padding: '2px 2px 24px', maxWidth: 760 } },
-        toast ? h('div', { className: 'pb-toast', style: { position: 'sticky', top: '38vh', zIndex: 50, width: 'fit-content', margin: '0 auto', display: 'inline-flex', alignItems: 'center', gap: 6, background: '#2f6fed', color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '8px 16px', borderRadius: 999, boxShadow: '0 10px 26px rgba(47,111,237,.30)' } }, '\u2713 ' + toast) : null,
+      return h('div', { ref: rootRef, className: 'pb-settings', style: { padding: '2px 2px 24px', maxWidth: 760 } },
+        toast ? h('div', { className: 'pb-toast', style: { position: 'fixed', top: toastPos ? toastPos.y : '50%', left: toastPos ? toastPos.x : '50%', transform: 'translate(-50%, -50%)', zIndex: 2147483000, width: 'fit-content', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 6, background: '#2f6fed', color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '8px 16px', borderRadius: 999, boxShadow: '0 10px 26px rgba(47,111,237,.30)' } }, '\u2713 ' + toast) : null,
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 } },
           h('div', null,
             h('h2', { style: { fontSize: 17, margin: '0 0 3px', color: 'var(--dsw-alias-label-primary, #111)' } }, '精确计费'),
