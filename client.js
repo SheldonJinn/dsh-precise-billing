@@ -1734,6 +1734,7 @@ function closeIcon(size = 14) {
           const cells = [];
           for (let month = 1; month <= 12; month += 1) {
             const cell = emptyCell(year + '-' + String(month).padStart(2, '0'), month + ' 月', '');
+            if (year + '-' + String(month).padStart(2, '0') === todayKey.slice(0, 7)) cell.isToday = true;
             for (let d = 1; d <= new Date(year, month, 0).getDate(); d += 1) {
               const dateKey = year + '-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
               const day = byDate[dateKey];
@@ -1743,7 +1744,7 @@ function closeIcon(size = 14) {
             }
             cells.push(cell);
           }
-          return { label: year + ' 年', cells };
+          return { label: year + ' 年', cells, year };
         });
         return {
           matrix: true,
@@ -1757,6 +1758,7 @@ function closeIcon(size = 14) {
       for (let m = 1; m <= 12; m += 1) {
         const key = anchor.year + '-' + String(m).padStart(2, '0');
         map[key] = emptyCell(key, m + ' 月', '');
+      if (key === todayKey.slice(0, 7)) map[key].isToday = true;
       }
       for (const day of days || []) {
         const key = day.date.slice(0, 7);
@@ -2011,7 +2013,13 @@ function closeIcon(size = 14) {
               h('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' } },
                 h('div', { style: { width: 190, flex: '0 0 190px', display: 'flex', flexDirection: 'column', gap: 6 } },
                   h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 } },
-                    h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
+                    h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
+                      h('span', { style: { fontSize: 15, fontWeight: 700 } }, row.label),
+                      row.year === Number(todayKey.slice(0, 4))
+                        ? h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: '#c0392b', fontWeight: 700 } },
+                            h('i', { className: 'pb-today-badge', style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' } }),
+                            '今年')
+                        : null),
                     h('button', {
                       type: 'button',
                       title: expanded ? '收起月份' : '展开月份',
