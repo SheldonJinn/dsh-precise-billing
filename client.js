@@ -2881,7 +2881,7 @@ function closeIcon(size = 14) {
 
       return h('div', { ref: rootRef, className: 'pb-settings', style: { padding: '2px 2px 24px', maxWidth: 760 } },
         toast ? h('div', { className: 'pb-toast', style: { position: 'fixed', top: toastPos ? toastPos.y : '50%', left: toastPos ? toastPos.x : '50%', transform: 'translate(-50%, -50%)', zIndex: 2147483000, width: 'fit-content', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 6, background: '#2f6fed', color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '8px 16px', borderRadius: 999, boxShadow: '0 10px 26px rgba(47,111,237,.30)' } }, '\u2713 ' + toast) : null,
-        h('div', { style: { fontSize: 10, color: MUTED, margin: '0 2px 8px' } }, '参考项目：DeepSeek-Usage（MIT）、dsh-hot-restart（MIT），详见 CREDITS.md'),
+        h('div', { style: { fontSize: 10, color: MUTED, margin: '0 2px 8px' } }, '参考项目：DeepSeek-Usage（MIT）、dsh-hot-restart（MIT）、dsh-meter（MIT），详见 CREDITS.md'),
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 } },
           h('div', null,
             h('h2', { style: { fontSize: 17, margin: '0 0 3px', color: 'var(--dsw-alias-label-primary, #111)' } }, '精确计费'),
@@ -3012,7 +3012,7 @@ function closeIcon(size = 14) {
               h('div', { style: { width: 300, padding: 8, borderRadius: 8, border: '1px dashed var(--dsw-alias-border-l1, rgba(0,0,0,.18))' } },
                 buildSidebar(draft, families, data, account, now, true))))),
 
-        h(Section, { title: '参考项目', desc: '本插件的用量看板与热重启分别参考了下面两个开源插件（MIT 许可）。原版可按下面的地址与命令自行安装。' },
+        h(Section, { title: '参考项目', desc: '本插件的用量看板、热重启与会话计费分别参考了下面三个开源插件（MIT 许可）。原版可按下面的地址与命令自行安装。' },
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 } },
             h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' } },
               h('div', { style: { minWidth: 0, flex: '1 1 240px' } },
@@ -3030,7 +3030,16 @@ function closeIcon(size = 14) {
                 h('a', { href: 'https://github.com/xiaolu511/dsh-hot-restart', target: '_blank', rel: 'noopener noreferrer', style: { display: 'inline-block', marginTop: 3, fontSize: 11, color: '#2f6fed', wordBreak: 'break-all' } }, 'https://github.com/xiaolu511/dsh-hot-restart')),
               h('div', { style: { display: 'flex', gap: 6, flex: '0 0 auto' } },
                 h('button', { type: 'button', onClick: () => { try { window.open('https://github.com/xiaolu511/dsh-hot-restart', '_blank', 'noopener'); } catch { /* ignore */ } } }, '打开主页'),
-                h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('dsh plugin --profile desktop add dsh-hot-restart'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))))),
+                h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('dsh plugin --profile desktop add dsh-hot-restart'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))),
+            h('div', { style: { height: 1, background: 'rgba(0,0,0,.07)' } }),
+            h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' } },
+              h('div', { style: { minWidth: 0, flex: '1 1 240px' } },
+                h('div', { style: { fontSize: 12.5, fontWeight: 600 } }, 'dsh-meter'),
+                h('div', { style: { fontSize: 11, color: MUTED, lineHeight: 1.65, marginTop: 2 } }, '会话计费插件：Token 分桶、缓存命中率、峰谷感知费用的会话标题栏 + 价格表设置页。'),
+                h('a', { href: 'https://github.com/J-Chien/dsh-meter', target: '_blank', rel: 'noopener noreferrer', style: { display: 'inline-block', marginTop: 3, fontSize: 11, color: '#2f6fed', wordBreak: 'break-all' } }, 'https://github.com/J-Chien/dsh-meter')),
+              h('div', { style: { display: 'flex', gap: 6, flex: '0 0 auto' } },
+                h('button', { type: 'button', onClick: () => { try { window.open('https://github.com/J-Chien/dsh-meter', '_blank', 'noopener'); } catch { /* ignore */ } } }, '打开主页'),
+                h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('dsh plugin --profile desktop add dsh-meter'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))))),
 
       );
     }

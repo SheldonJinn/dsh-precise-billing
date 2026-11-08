@@ -115,7 +115,7 @@ dsh plugin --profile desktop add link:C:\Users\XXJ\Documents\deepseek-harness\de
 
 ## 参考项目
 
-本插件的用量看板与热重启分别参考了下面两个开源插件（均为 MIT 许可），代码为独立实现，未逐行复制。**原版可按下面的地址与命令自行安装。**
+本插件的用量看板、热重启与会话计费分别参考了下面三个开源插件（均为 MIT 许可），代码为独立实现，未逐行复制。**原版可按下面的地址与命令自行安装。**
 
 ### DeepSeek-Usage
 
@@ -135,6 +135,15 @@ dsh plugin --profile desktop add link:C:\Users\XXJ\Documents\deepseek-harness\de
 
 [前往 GitHub 下载](https://github.com/xiaolu511/dsh-hot-restart) · [npm 页面](https://www.npmjs.com/package/dsh-hot-restart)
 
+### dsh-meter
+
+会话计费插件：Token 分桶、缓存命中率、峰谷感知费用的会话标题栏，以及价格表设置页。
+
+- 地址：<https://github.com/J-Chien/dsh-meter>
+- 下载 / 安装：`dsh plugin --profile desktop add dsh-meter`
+
+[前往 GitHub 下载](https://github.com/J-Chien/dsh-meter) · [npm 页面](https://www.npmjs.com/package/dsh-meter)
+
 > 更多说明见仓库内 `CREDITS.md`；设置页底部「参考项目」也提供了一键打开主页与复制安装命令。
 
 ## 更新日志
@@ -147,7 +156,7 @@ dsh plugin --profile desktop add link:C:\Users\XXJ\Documents\deepseek-harness\de
 - 日历规则细化：空格灰字、数据格灰底原色、选中格蓝底高亮；
 - 年视图当前年份整行高亮，月份柱状图分峰/闲颜色、悬停浮框、底部对齐；
 - 设置页新增「参考项目」区与说明；默认刷新间隔统一 60 秒；
-- 重写 README 并更新全部界面截图。
+- 重写 README 并更新全部界面截图；补充 dsh-meter 参考项目。
 
 ### 0.2.0
 

@@ -8,6 +8,7 @@
 | 项目 | 许可证 | 源码地址 | 借鉴内容 | 说明 |
 | --- | --- | --- | --- | --- |
 | DeepSeek-Usage（npm `deepseek-usage` 0.1.6） | MIT | https://github.com/sdiwenchen-lang/DeepSeek-Usage | 用量看板的信息架构：趋势/日历双视图、统计卡、模型消费/Token/请求图、按模型明细、点击日期弹层、峰/闲分色 | 面板与图表为重新实现（自写 SVG 与布局），未复制其源码；官方插件仍可独立安装 |
+| dsh-meter（0.3.32） | MIT | https://github.com/J-Chien/dsh-meter | 会话级计费：Token 分桶、缓存命中率、峰谷感知费用的会话标题栏与价格表设置页的计费思路 | 本插件计价引擎为独立实现，未复制其源码 |
 | dsh-hot-restart（0.3.17） | MIT | https://github.com/xiaolu511/dsh-hot-restart | 热重启的实现思路：把「等待→结束主进程→重新拉起」的助手交给 Explorer 派发，避免助手被 DSH 的 job object 连带结束；全程无黑窗 | 本插件在宿主侧独立实现了一个约 50 行的精简版接口 `POST /api/precise-billing/restart`，未复制其源码，也没有调用该插件的接口；它额外的自检/诊断/覆盖层 UI 未纳入 |
 
 ## 二、调研过但未使用代码
@@ -38,7 +39,9 @@
 ```bash
 dsh plugin --profile desktop add deepseek-usage
 dsh plugin --profile desktop add dsh-hot-restart
+dsh plugin --profile desktop add dsh-meter
 ```
 
 - DeepSeek-Usage：https://github.com/sdiwenchen-lang/DeepSeek-Usage
 - dsh-hot-restart：https://github.com/xiaolu511/dsh-hot-restart
+- dsh-meter：https://github.com/J-Chien/dsh-meter

@@ -56,6 +56,12 @@
       "license": "Apache-2.0",
       "repository": "https://github.com/YuMS/dsh-duet",
       "note": "仅做过语音交互调研，本插件未使用其代码"
+    },
+    {
+      "name": "dsh-meter",
+      "license": "MIT",
+      "repository": "https://github.com/J-Chien/dsh-meter",
+      "note": "会话计费、Token 分桶、缓存命中率与价格表设置页的计费思路参考；独立实现"
     }
   ],
   "author": "Sheldon Jinn"
