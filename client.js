@@ -2232,6 +2232,11 @@ function closeIcon(size = 14) {
         '.pb-settings button:hover{background:rgba(47,111,237,.12) !important;border-color:rgba(47,111,237,.38) !important}',
         '@keyframes pb-toast-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.94)}8%{opacity:.75;transform:translate(-50%,-50%) scale(1)}88%{opacity:.75;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}',
         '.pb-toast{animation:pb-toast-pop 2.2s ease forwards}',
+        '.pb-credits-backdrop{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(23,28,38,.34);backdrop-filter:blur(3px)}',
+        '.pb-credits-card{width:min(720px, calc(100vw - 40px));max-height:calc(100vh - 120px);display:flex;flex-direction:column;background:var(--dsw-alias-bg-layer-1,#fff);border:1px solid rgba(0,0,0,.10);border-radius:14px;box-shadow:0 28px 70px rgba(15,23,42,.24);overflow:hidden}',
+        '.pb-credits-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(0,0,0,.08)}',
+        '.pb-credits-title{font-size:14px;font-weight:650}',
+        '.pb-credits-body{margin:0;padding:14px 16px;overflow:auto;font-size:12px;line-height:1.7;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;color:var(--dsw-alias-label-primary,#222);background:var(--dsw-alias-bg-layer-1,#fff)}',
         '.pb-rst-backdrop{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(23,28,38,.34);backdrop-filter:blur(3px);animation:pb-rst-fade .16s ease}',
         '.pb-rst-card{width:348px;max-width:calc(100vw - 32px);background:var(--dsw-alias-bg-layer-1,#fff);border:3.5px solid var(--pb-tone,#2f6fed);border-radius:14px;box-shadow:0 28px 70px rgba(15,23,42,.24);padding:20px 20px 14px;color:var(--dsw-alias-label-primary,#111);font-family:inherit;animation:pb-rst-in .18s cubic-bezier(.2,.8,.2,1)}',
         '.pb-rst-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:650;letter-spacing:.2px}',
@@ -2760,6 +2765,17 @@ function closeIcon(size = 14) {
       const rootRef = React.useRef(null);
       const [toast, setToast] = React.useState('');
       const [toastPos, setToastPos] = React.useState(null);
+      const [credits, setCredits] = React.useState({ open: false, loading: false, text: '' });
+      const openCredits = async () => {
+        setCredits({ open: true, loading: true, text: '' });
+        try {
+          const res = await fetch('/api/precise-billing/credits', { cache: 'no-store' });
+          const text = await res.text();
+          setCredits({ open: true, loading: false, text });
+        } catch (error) {
+          setCredits({ open: true, loading: false, text: '读取失败：' + String((error && error.message) || error) });
+        }
+      };
 
       React.useEffect(() => {
         if (!dirty) return undefined;
@@ -2881,6 +2897,16 @@ function closeIcon(size = 14) {
 
       return h('div', { ref: rootRef, className: 'pb-settings', style: { padding: '2px 2px 24px', maxWidth: 760 } },
         toast ? h('div', { className: 'pb-toast', style: { position: 'fixed', top: toastPos ? toastPos.y : '50%', left: toastPos ? toastPos.x : '50%', transform: 'translate(-50%, -50%)', zIndex: 2147483000, width: 'fit-content', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 6, background: '#2f6fed', color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '8px 16px', borderRadius: 999, boxShadow: '0 10px 26px rgba(47,111,237,.30)' } }, '\u2713 ' + toast) : null,
+        credits.open ? ReactDOM.createPortal(
+          h('div', { className: 'pb-credits-backdrop', onMouseDown: (event) => { if (event.target === event.currentTarget) setCredits({ open: false, loading: false, text: '' }); } },
+            h('div', { className: 'pb-credits-card' },
+              h('div', { className: 'pb-credits-head' },
+                h('span', { className: 'pb-credits-title' }, 'CREDITS.md'),
+                h('div', { style: { display: 'flex', gap: 8 } },
+                  h('button', { type: 'button', className: 'pb-rst-btn', onClick: () => { const ok = copyRestartLog(credits.text); notify(ok ? 'CREDITS 全文已复制' : '复制失败'); } }, '复制全文'),
+                  h('button', { type: 'button', className: 'pb-rst-btn cancel', onClick: () => setCredits({ open: false, loading: false, text: '' }) }, '关闭'))),
+              h('pre', { className: 'pb-credits-body' }, credits.loading ? '读取中…' : credits.text))),
+          document.body) : null,
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 } },
           h('div', null,
             h('h2', { style: { fontSize: 17, margin: '0 0 3px', color: 'var(--dsw-alias-label-primary, #111)' } }, '精确计费'),
@@ -3015,7 +3041,7 @@ function closeIcon(size = 14) {
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 } },
             h('div', { style: { fontSize: 10.5, color: MUTED } },
               '完整署名与许可证说明见 ',
-              h('a', { href: '/api/precise-billing/credits', target: '_blank', rel: 'noopener noreferrer', style: { color: '#2f6fed', textDecoration: 'underline' } }, 'CREDITS.md')),
+              h('button', { type: 'button', onClick: openCredits, style: { border: 'none', background: 'transparent', padding: 0, color: '#2f6fed', textDecoration: 'underline', cursor: 'pointer', fontSize: 'inherit' } }, 'CREDITS.md')),
             h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' } },
               h('div', { style: { minWidth: 0, flex: '1 1 240px' } },
                 h('div', { style: { fontSize: 12.5, fontWeight: 600 } }, 'DeepSeek-Usage'),
