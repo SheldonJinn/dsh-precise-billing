@@ -9,17 +9,17 @@
 
 ## 界面预览
 
-**用量看板 · 趋势**
+**侧栏卡片**
 
-![用量看板 · 趋势](docs/trends.png)
+![侧栏卡片](docs/overview.png)
 
-**日历 · 按日**
+**用量日历（按日）**
 
-![日历 · 按日](docs/calendar-day.png)
+![用量日历](docs/calendar.png)
 
-**日历 · 按周**
+**设置页**
 
-![日历 · 按周](docs/calendar-week.png)
+![设置页](docs/settings.png)
 
 **热重启（两段式确认）**
 
@@ -103,7 +103,7 @@ dsh plugin --profile desktop add link:C:\Users\XXJ\Documents\deepseek-harness\de
 
 ## 参考项目
 
-本插件的用量看板与热重启功能分别参考了下面两个开源插件（均为 MIT 许可），代码为独立实现，未逐行复制。原版插件已从本机卸载，如仍想单独使用，可按下面的地址与命令自行安装。
+本插件的用量看板与热重启功能分别参考了下面两个开源插件（均为 MIT 许可），代码为独立实现，未逐行复制。
 
 ### DeepSeek-Usage
 
