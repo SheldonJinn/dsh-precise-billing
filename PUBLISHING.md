@@ -2,6 +2,20 @@
 
 > 当前状态：本地插件名 `dsh-precise-billing`，`private: true`，只能 link 安装，不能直接发布。
 
+## 0. npm 2FA 与通行密钥（实测记录）
+
+- 2026-11：在本机 Windows + Chrome 上，npm 的「Security key」注册反复失败（弹出 Windows 安全中心后提示 `Device registration failed`），无论选本机 Windows Hello 还是手机都不行。
+- 最终成功方式：**小米 17 Ultra（Android）+ Google Chrome** 打开 npmjs.com → Account → Enable 2FA → Security key，用手机原生通行密钥（指纹/人脸）完成注册。
+- 通行密钥默认保存在手机（Google 密码管理器/设备）。**换手机前**要确认它已同步到 Google 账号，或在 npm 里再注册一把硬件安全密钥作为备份；同时保存 npm 的恢复码。
+
+### 硬件安全密钥建议
+
+- **YubiKey 5 NFC / 5C NFC**：FIDO2 + U2F，USB-A 或 USB-C + NFC，兼容性最好；可存约 25 个 resident passkey。
+- **Yubico Security Key NFC / C NFC**：更便宜，纯 FIDO2，日常够用。
+- **Feitian（飞天诚信）ePass FIDO2 / BioPass**：国内容易买，价格低。
+- **Token2 / Nitrokey 3 / Solo 2C NFC**：开源或欧洲品牌，支持 NFC。
+- 建议买 **两只**（一只日常、一只备份）或「一只硬件钥匙 + 手机通行密钥」，并在 npm 里都注册；只留一把钥匙，丢了会非常麻烦。
+
 ## 1. 改成可发布的包名（必须）
 
 `@local/*` 是本地保留 scope，npm 不接受发布。建议使用已被验证可用的名字：
