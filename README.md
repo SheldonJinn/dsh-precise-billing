@@ -17,9 +17,13 @@
 
 ![用量日历](docs/calendar.png)
 
-**年视图（当前年份高亮）**
+**年视图（收起状态）**
 
 ![年视图](docs/year.png)
+
+**年视图（展开月份）**
+
+![年视图展开](docs/year-expanded.png)
 
 **设置页**
 
