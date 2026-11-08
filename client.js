@@ -2492,7 +2492,7 @@ function closeIcon(size = 14) {
       }, icon);
       const actionsNode = h('div', {
         className: 'pb-side-actions',
-        style: { position: 'absolute', top: -16, right: 0, display: 'flex', alignItems: 'center', gap: 2, zIndex: 2 },
+        style: { position: 'absolute', top: -16, right: 8, display: 'flex', alignItems: 'center', gap: 2, zIndex: 2 },
       },
         actionButton('热重启 DSH', askRestart, restartIcon(14)),
         actionButton('用量看板', () => setUsageOpen(true), chartIcon(12)),
