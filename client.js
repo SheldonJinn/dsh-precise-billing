@@ -2245,8 +2245,10 @@ function closeIcon(size = 14) {
         '.pb-rst-fill{height:100%;width:8%;border-radius:999px;background:#2f6fed;animation:pb-rst-progress 9s cubic-bezier(.15,.7,.25,1) forwards}',
         '.pb-rst-toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:2147483001;background:rgba(20,22,28,.92);color:#fff;font-size:12px;line-height:1;padding:9px 16px;border-radius:999px;box-shadow:0 10px 26px rgba(0,0,0,.24);animation:pb-rst-toast-in .18s ease}',
         '@keyframes pb-rst-toast-in{from{opacity:0;transform:translateX(-50%) translateY(4px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}',
-        '.pb-rst-breathe{animation:pb-rst-in .18s cubic-bezier(.2,.8,.2,1),pb-rst-breathe 1.4s ease-in-out infinite}',
-        '@keyframes pb-rst-breathe{0%,100%{box-shadow:0 28px 70px rgba(15,23,42,.24),0 0 0 2px color-mix(in srgb,var(--pb-tone,#2f6fed) 62%,transparent),0 0 16px color-mix(in srgb,var(--pb-tone,#2f6fed) 42%,transparent)}50%{box-shadow:0 28px 70px rgba(15,23,42,.24),0 0 0 9px color-mix(in srgb,var(--pb-tone,#2f6fed) 26%,transparent),0 0 36px color-mix(in srgb,var(--pb-tone,#2f6fed) 55%,transparent)}}',
+        '.pb-rst-breathe{animation:pb-rst-in .18s cubic-bezier(.2,.8,.2,1),pb-rst-breathe 2.6s ease-in-out infinite;will-change:box-shadow}',
+        '@keyframes pb-rst-breathe{0%,100%{box-shadow:0 28px 70px rgba(15,23,42,.24),0 0 0 0 color-mix(in srgb,var(--pb-tone,#2f6fed) 0%,transparent),0 0 8px 0 color-mix(in srgb,var(--pb-tone,#2f6fed) 0%,transparent)}45%{box-shadow:0 28px 70px rgba(15,23,42,.24),0 0 0 3px color-mix(in srgb,var(--pb-tone,#2f6fed) 30%,transparent),0 0 24px 6px color-mix(in srgb,var(--pb-tone,#2f6fed) 26%,transparent)}70%{box-shadow:0 28px 70px rgba(15,23,42,.24),0 0 0 2px color-mix(in srgb,var(--pb-tone,#2f6fed) 24%,transparent),0 0 18px 4px color-mix(in srgb,var(--pb-tone,#2f6fed) 20%,transparent)}}',
+        '.pb-rst-btn.cancel{color:#2e9e63;border-color:rgba(46,158,99,.45);background:transparent}',
+        '.pb-rst-btn.cancel:hover{background:rgba(46,158,99,.10)}',
         '.pb-rst-btn.warn{background:#d97706;border-color:#d97706;color:#fff}',
         '.pb-rst-btn.warn:hover{background:#b45309}',
         '.pb-rst-btn.danger{background:#c93b3b;border-color:#c93b3b;color:#fff}',
@@ -2568,12 +2570,12 @@ function closeIcon(size = 14) {
         : state.error;
       const actions = [];
       if (phase === 'checking') {
-        actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
+        actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn cancel', onClick: closeRestart }, '取消'));
       } else if (phase === 'busy') {
-        actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
+        actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn cancel', onClick: closeRestart }, '取消'));
         actions.push(h('button', { key: 'next', type: 'button', className: 'pb-rst-btn warn', onClick: () => setRestartState({ phase: 'confirm' }) }, '继续重启'));
       } else if (phase === 'confirm') {
-        actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn', onClick: closeRestart }, '取消'));
+        actions.push(h('button', { key: 'cancel', type: 'button', className: 'pb-rst-btn cancel', onClick: closeRestart }, '取消'));
         actions.push(h('button', { key: 'go', type: 'button', className: 'pb-rst-btn danger', onClick: doRestart }, '立即重启'));
       } else {
         actions.push(h('button', { key: 'close', type: 'button', className: 'pb-rst-btn', onClick: phase === 'running' || phase === 'timeout' ? closeRestartWithLog : closeRestart }, phase === 'running' ? '收起并复制日志' : phase === 'timeout' ? '知道了' : '好的'));
@@ -2587,10 +2589,10 @@ function closeIcon(size = 14) {
               'aria-label': title,
               style: { '--pb-tone': tone, borderColor: tone },
             },
-            h('div', { className: 'pb-rst-title' },
+            h('div', { className: 'pb-rst-title', style: warn ? { color: tone } : undefined },
               h('span', { style: { color: tone, display: 'inline-flex' } }, warn ? warningIcon(17, tone) : restartIcon(15)),
               title),
-            h('div', { className: 'pb-rst-body', style: warn ? { color: '#6b4a12' } : undefined }, lead),
+            h('div', { className: 'pb-rst-body', style: warn ? { color: phase === 'busy' ? '#7c4a03' : '#8f2a2a' } : undefined }, lead),
             phase === 'busy' && runningCount > 0
               ? h('div', { className: 'pb-rst-list' },
                   h('div', { className: 'pb-rst-list-title' }, '运行中的对话'),
