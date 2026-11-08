@@ -17,6 +17,7 @@
  */
 import fs from 'node:fs';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { zstdDecompressSync } from 'node:zlib';
@@ -1278,6 +1279,7 @@ export async function readAccount(ctx) {
  *   job object 连带结束；本函数为独立编写的精简实现（约 50 行），未复制其源码。
  */
 
+const PLUGIN_ROOT = path.dirname(fileURLToPath(import.meta.url));
 let lastRestartAt = 0;
 let hostCtx;
 function runningSessions() {
@@ -1401,7 +1403,18 @@ export function apply(ctx) {
           return;
         }
 
-        if (pathname === '/api/precise-billing/restart') {
+        if (pathname === '/api/precise-billing/credits') {
+      try {
+        const text = fs.readFileSync(path.join(PLUGIN_ROOT, 'CREDITS.md'), 'utf8');
+        res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+        res.end(text);
+      } catch (error) {
+        sendJson(res, 404, { ok: false, error: String((error && error.message) || error) });
+      }
+      return;
+    }
+
+    if (pathname === '/api/precise-billing/restart') {
       if (req.method !== 'POST') { sendJson(res, 405, { ok: false, error: 'method not allowed' }); return; }
       let restartBody = {};
       try { restartBody = JSON.parse((await readBody(req)) || '{}'); } catch { restartBody = {}; }

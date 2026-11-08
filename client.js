@@ -3013,6 +3013,9 @@ function closeIcon(size = 14) {
 
         h(Section, { title: '参考项目', desc: '本插件的用量看板、热重启与会话计费分别参考了下面三个开源插件（MIT 许可）。原版可按下面的地址与命令自行安装。' },
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 } },
+            h('div', { style: { fontSize: 10.5, color: MUTED } },
+              '完整署名与许可证说明见 ',
+              h('a', { href: '/api/precise-billing/credits', target: '_blank', rel: 'noopener noreferrer', style: { color: '#2f6fed', textDecoration: 'underline' } }, 'CREDITS.md')),
             h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' } },
               h('div', { style: { minWidth: 0, flex: '1 1 240px' } },
                 h('div', { style: { fontSize: 12.5, fontWeight: 600 } }, 'DeepSeek-Usage'),
@@ -3039,7 +3042,6 @@ function closeIcon(size = 14) {
               h('div', { style: { display: 'flex', gap: 6, flex: '0 0 auto' } },
                 h('button', { type: 'button', onClick: () => { try { window.open('https://github.com/J-Chien/dsh-meter', '_blank', 'noopener'); } catch { /* ignore */ } } }, '打开主页'),
                 h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('dsh plugin --profile desktop add dsh-meter'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))))),
-        h('div', { style: { fontSize: 10.5, color: MUTED, margin: '6px 2px 0' } }, '完整署名与许可证说明见插件目录内 CREDITS.md'),
 
       );
     }
