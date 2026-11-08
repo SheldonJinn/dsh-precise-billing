@@ -2004,12 +2004,13 @@ function closeIcon(size = 14) {
               onMouseEnter: () => setHoverKey('year-' + row.label),
               onMouseLeave: () => setHoverKey(null),
               style: {
-                border: '1px solid ' + (hoverKey === 'year-' + row.label ? 'rgba(47,111,237,.30)' : 'rgba(0,0,0,.10)'),
+                border: '1px solid ' + (row.year === Number(todayKey.slice(0, 4)) || hoverKey === 'year-' + row.label ? 'rgba(47,111,237,.30)' : 'rgba(0,0,0,.10)'),
                 borderRadius: 12,
                 padding: '12px 14px',
-                background: hoverKey === 'year-' + row.label ? 'rgba(47,111,237,.06)' : 'rgba(0,0,0,.025)',
-                opacity: hoverKey === 'year-' + row.label ? 1 : 0.85,
-                transition: 'background .14s ease, border-color .14s ease, opacity .14s ease',
+                background: row.year === Number(todayKey.slice(0, 4))
+                  ? 'rgba(47,111,237,.10)'
+                  : hoverKey === 'year-' + row.label ? 'rgba(47,111,237,.06)' : 'rgba(0,0,0,.03)',
+                transition: 'background .14s ease, border-color .14s ease',
               },
             },
               h('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' } },

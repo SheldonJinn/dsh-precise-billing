@@ -21,6 +21,10 @@
 
 ![设置页](docs/settings.png)
 
+**年视图（当前年份高亮）**
+
+![年视图](docs/year.png)
+
 **热重启（两段式确认）**
 
 ![热重启两段式确认](docs/restart.png)
