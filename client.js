@@ -2881,7 +2881,6 @@ function closeIcon(size = 14) {
 
       return h('div', { ref: rootRef, className: 'pb-settings', style: { padding: '2px 2px 24px', maxWidth: 760 } },
         toast ? h('div', { className: 'pb-toast', style: { position: 'fixed', top: toastPos ? toastPos.y : '50%', left: toastPos ? toastPos.x : '50%', transform: 'translate(-50%, -50%)', zIndex: 2147483000, width: 'fit-content', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 6, background: '#2f6fed', color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '8px 16px', borderRadius: 999, boxShadow: '0 10px 26px rgba(47,111,237,.30)' } }, '\u2713 ' + toast) : null,
-        h('div', { style: { fontSize: 10, color: MUTED, margin: '0 2px 8px' } }, '参考项目：DeepSeek-Usage（MIT）、dsh-hot-restart（MIT）、dsh-meter（MIT），详见 CREDITS.md'),
         h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 } },
           h('div', null,
             h('h2', { style: { fontSize: 17, margin: '0 0 3px', color: 'var(--dsw-alias-label-primary, #111)' } }, '精确计费'),
@@ -3040,6 +3039,7 @@ function closeIcon(size = 14) {
               h('div', { style: { display: 'flex', gap: 6, flex: '0 0 auto' } },
                 h('button', { type: 'button', onClick: () => { try { window.open('https://github.com/J-Chien/dsh-meter', '_blank', 'noopener'); } catch { /* ignore */ } } }, '打开主页'),
                 h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('dsh plugin --profile desktop add dsh-meter'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))))),
+        h('div', { style: { fontSize: 10.5, color: MUTED, margin: '6px 2px 0' } }, '完整署名与许可证说明见插件目录内 CREDITS.md'),
 
       );
     }
