@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Precise Billing",
-    "description": "Per-request cost tracking with DeepSeek official CNY pricing (peak/off-peak and holidays)"
+    "description": "Per-request billing with official DeepSeek CNY pricing (peak/off-peak, holidays), plus cost bar, sidebar card, usage dashboard and three-stage hot restart"
   }
 }
