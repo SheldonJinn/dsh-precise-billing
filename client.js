@@ -2467,7 +2467,7 @@ function closeIcon(size = 14) {
         position: 'relative',
       };
 
-      const gridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 1, alignItems: 'center', paddingRight: 16 };
+      const gridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 1, alignItems: 'center' };
 
       const title = '累计消费 ' + totalText + ' · 账户余额 ' + money(Number(account?.balance)) + '\n' +
         (phase.peak ? '目前峰时' : '目前闲时') + ' 进度 ' + pct(phase.progress) + ' · ' + fmtClock(phase.until) + ' 转' + (phase.peak ? '闲时' : '峰时');
@@ -2539,7 +2539,7 @@ function closeIcon(size = 14) {
         ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 1, marginTop: 1 } }, ...detailRows)
         : null;
 
-      return h('div', { className: 'pb-side-card', title, style: { ...base, gap: 2, padding: '2px 2px 4px' } }, top, barNode, infoNode, detailsNode, actionsNode);
+      return h('div', { className: 'pb-side-card', title, style: { ...base, gap: 2, padding: '2px 8px 4px' } }, top, barNode, infoNode, detailsNode, actionsNode);
     }
 
     function RestartDialog() {
