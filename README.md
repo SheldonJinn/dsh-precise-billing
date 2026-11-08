@@ -178,3 +178,9 @@ dsh plugin --profile desktop add link:C:\Users\XXJ\Documents\deepseek-harness\de
 ## 作者
 
 Sheldon Jinn
+
+## 许可
+
+MIT License，Copyright (c) 2026 Sheldon Jinn。详见 `LICENSE`。
+
+发布到 GitHub / npm / 插件市场的完整步骤见 `PUBLISHING.md`。

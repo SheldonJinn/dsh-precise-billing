@@ -18,7 +18,9 @@
     "README.md",
     "locale/*.json",
     "CREDITS.md",
-    "docs"
+    "docs",
+    "LICENSE",
+    "PUBLISHING.md"
   ],
   "dsh": {
     "bundle": {
@@ -64,5 +66,22 @@
       "note": "会话计费、Token 分桶、缓存命中率与价格表设置页的计费思路参考；独立实现"
     }
   ],
-  "author": "Sheldon Jinn"
+  "author": "Sheldon Jinn",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "billing",
+    "usage",
+    "token",
+    "cost",
+    "restart"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
