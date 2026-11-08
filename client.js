@@ -1855,8 +1855,9 @@ function closeIcon(size = 14) {
         const level = levelOf(cell.tokens);
         const heat = isToday ? 'rgba(47,111,237,.10)' : 'transparent';
         const hoverCell = dim === 'day' || dim === 'week' || dim === 'month' || dim === 'year';
-        const interactiveCell = hoverCell && !empty;
-        const idleCell = interactiveCell && !isToday && hoverKey !== cell.key;
+        const hoveredCell = hoverCell && hoverKey === cell.key;
+        const idleCell = hoverCell && !isToday && !hoveredCell;
+        const grayText = empty && !isToday;
         const title = (cell.label || cell.sub ? (cell.label + ' ' + (cell.sub || '')).trim() + '\n' : '') +
           'Tokens ' + fmtNumberCn(cell.tokens) + ' · 请求 ' + fmtNumberCn(cell.requests) + ' 次\n' +
           '总额 ' + money2(cell.cost) + '（峰时 ' + money2(cell.peakCost) + ' / 闲时 ' + money2(cell.offPeakCost) + '）';
@@ -1873,8 +1874,8 @@ function closeIcon(size = 14) {
             boxSizing: 'border-box',
             padding: big ? '11px 13px' : mini ? '8px 9px' : '8px 10px',
             borderRadius: 10,
-            border: '1px solid ' + (idleCell ? 'rgba(0,0,0,.09)' : interactiveCell ? 'rgba(47,111,237,.30)' : 'rgba(0,0,0,.14)'),
-            background: idleCell ? 'rgba(0,0,0,.03)' : interactiveCell && !isToday ? 'rgba(47,111,237,.10)' : heat,
+            border: '1px solid ' + (idleCell ? 'rgba(0,0,0,.09)' : hoveredCell ? 'rgba(47,111,237,.30)' : 'rgba(0,0,0,.14)'),
+            background: idleCell ? 'rgba(0,0,0,.03)' : hoveredCell && !isToday ? 'rgba(47,111,237,.10)' : heat,
             opacity: 1,
             boxShadow: hoverKey === cell.key ? '0 6px 16px rgba(0,0,0,.10)' : 'none',
             transform: hoverKey === cell.key ? 'translateY(-1px)' : 'none',
@@ -1892,7 +1893,7 @@ function closeIcon(size = 14) {
                   alignItems: 'baseline', justifyContent: 'center', gap: dim === 'week' ? 1 : 4, minWidth: 0, textAlign: 'center',
                 },
               },
-                h('span', { style: { fontSize: big ? 17 : mini ? 13 : 16, fontWeight: big ? 700 : 600, color: idleCell ? '#9aa0a6' : 'var(--dsw-alias-label-primary, #111)', whiteSpace: 'nowrap', textAlign: 'center' } }, cell.label),
+                h('span', { style: { fontSize: big ? 17 : mini ? 13 : 16, fontWeight: big ? 700 : 600, color: grayText ? '#9aa0a6' : 'var(--dsw-alias-label-primary, #111)', whiteSpace: 'nowrap', textAlign: 'center' } }, cell.label),
                 isToday
                   ? h('span', {
                       style: {
@@ -1903,20 +1904,20 @@ function closeIcon(size = 14) {
                       h('i', { className: 'pb-today-badge', style: { width: 6, height: 6, borderRadius: '50%', background: '#e74c3c', display: 'inline-block' } }),
                       dim === 'day' ? '今天' : dim === 'week' ? '本周' : dim === 'month' ? '本月' : '今年')
                   : (cell.sub
-                      ? h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: idleCell ? '#a0a4a8' : MUTED, whiteSpace: 'nowrap', textAlign: 'center' } }, cell.sub)
+                      ? h('span', { style: { fontSize: mini ? 8.5 : 9.5, color: grayText ? '#a0a4a8' : MUTED, whiteSpace: 'nowrap', textAlign: 'center' } }, cell.sub)
                       : null))
             : null,
           h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 0 } },
-            h('span', { style: { fontSize: big ? 11 : mini ? 9.5 : 11, color: idleCell ? '#a0a4a8' : MUTED, whiteSpace: 'nowrap', flex: '0 0 auto', fontWeight: 700 } }, 'Token'),
-            h('span', { style: { fontSize: big ? 12 : mini ? 9.5 : 11.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: idleCell ? '#a0a4a8' : empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.2, marginLeft: 'auto', whiteSpace: 'nowrap' } },
+            h('span', { style: { fontSize: big ? 11 : mini ? 9.5 : 11, color: grayText ? '#a0a4a8' : MUTED, whiteSpace: 'nowrap', flex: '0 0 auto', fontWeight: 700 } }, 'Token'),
+            h('span', { style: { fontSize: big ? 12 : mini ? 9.5 : 11.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: grayText ? '#a0a4a8' : empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', lineHeight: 1.2, marginLeft: 'auto', whiteSpace: 'nowrap' } },
               empty ? '—' : fmtNumberCn(cell.tokens))),
           h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 0 } },
-            h('span', { style: { fontSize: big ? 11 : mini ? 9.5 : 11, color: idleCell ? '#a0a4a8' : MUTED, whiteSpace: 'nowrap', flex: '0 0 auto', fontWeight: 700 } }, '消费'),
-            h('span', { style: { fontSize: big ? 12 : mini ? 9.5 : 11.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: idleCell ? '#a0a4a8' : empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', marginLeft: 'auto', whiteSpace: 'nowrap' } },
+            h('span', { style: { fontSize: big ? 11 : mini ? 9.5 : 11, color: grayText ? '#a0a4a8' : MUTED, whiteSpace: 'nowrap', flex: '0 0 auto', fontWeight: 700 } }, '消费'),
+            h('span', { style: { fontSize: big ? 12 : mini ? 9.5 : 11.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: grayText ? '#a0a4a8' : empty ? MUTED : 'var(--dsw-alias-label-primary, #111)', marginLeft: 'auto', whiteSpace: 'nowrap' } },
               empty ? '—' : money2(cell.cost))),
           empty ? null : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' } },
-            splitRow('峰时', cell.peakCost, PEAK_COLOR, big ? 10.5 : mini ? 9.5 : 10, idleCell),
-            splitRow('闲时', cell.offPeakCost, OFF_COLOR, big ? 10.5 : mini ? 9.5 : 10, idleCell)));
+            splitRow('峰时', cell.peakCost, PEAK_COLOR, big ? 10.5 : mini ? 9.5 : 10, grayText),
+            splitRow('闲时', cell.offPeakCost, OFF_COLOR, big ? 10.5 : mini ? 9.5 : 10, grayText)));
       };
 
       const emptyTile = (key, height) => h('div', { key, style: { height, boxSizing: 'border-box', borderRadius: 10, background: 'transparent', border: '1px dashed rgba(0,0,0,.16)' } });
