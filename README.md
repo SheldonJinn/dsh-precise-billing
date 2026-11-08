@@ -107,6 +107,14 @@
 
 ## 安装
 
+**从 npm 安装（推荐，发布版）：**
+
+```bash
+dsh plugin --profile desktop add dsh-precise-billing
+```
+
+**本地开发安装：**
+
 ```bash
 dsh plugin --profile desktop add link:C:\Users\XXJ\Documents\deepseek-harness\default-workspace\_plugins\precise-billing
 ```
