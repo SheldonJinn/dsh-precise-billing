@@ -2504,22 +2504,16 @@ function closeIcon(size = 14) {
         h('span', { style: { whiteSpace: 'nowrap' } }, label),
         h('span', { style: { whiteSpace: 'nowrap', textAlign: 'right', cursor: full ? 'help' : 'default' }, title: full || undefined }, value));
 
-      const cellsTop = [];
-      if (flags.a1) cellsTop.push(cell('累计消费', totalText, moneyFull(totalValue)));
-      if (flags.a2) cellsTop.push(cell('账户余额', balanceText, moneyFull(Number(account?.balance))));
-      const cellsBottom = [];
-      if (flags.a3) cellsBottom.push(cell('今日消费', todayText, moneyFull(todayValue)));
-      if (flags.a4) cellsBottom.push(cell('本月消费', monthCostText, moneyFull(Number(account?.monthCost))));
+      const cells = [];
+      if (flags.a1) cells.push(cell('累计消费', totalText, moneyFull(totalValue)));
+      if (flags.a2) cells.push(cell('账户余额', balanceText, moneyFull(Number(account?.balance))));
+      if (flags.a3) cells.push(cell('今日消费', todayText, moneyFull(todayValue)));
+      if (flags.a4) cells.push(cell('本月消费', monthCostText, moneyFull(Number(account?.monthCost))));
 
-      const top = cellsTop.length > 0
+      const top = cells.length > 0
         ? h('div', {
             style: { ...gridStyle, fontWeight: 600 },
-          }, ...cellsTop)
-        : null;
-      const bottom = cellsBottom.length > 0
-        ? h('div', {
-            style: { display: 'flex', justifyContent: 'flex-end', gap: 16, paddingRight: 16, marginTop: 2, fontWeight: 600 },
-          }, ...cellsBottom)
+          }, ...cells)
         : null;
 
       const barNode = flags.b1 ? peakBar(phase, flags) : null;
@@ -2545,7 +2539,7 @@ function closeIcon(size = 14) {
         ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 1, marginTop: 1 } }, ...detailRows)
         : null;
 
-      return h('div', { className: 'pb-side-card', title, style: { ...base, gap: 2, padding: '2px 2px 4px' } }, top, bottom, barNode, infoNode, detailsNode, actionsNode);
+      return h('div', { className: 'pb-side-card', title, style: { ...base, gap: 2, padding: '2px 2px 4px' } }, top, barNode, infoNode, detailsNode, actionsNode);
     }
 
     function RestartDialog() {
