@@ -82,5 +82,13 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SheldonJinn/dsh-precise-billing.git"
+  },
+  "homepage": "https://github.com/SheldonJinn/dsh-precise-billing#readme",
+  "bugs": {
+    "url": "https://github.com/SheldonJinn/dsh-precise-billing/issues"
   }
 }

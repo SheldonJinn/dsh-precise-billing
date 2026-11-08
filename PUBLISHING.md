@@ -38,7 +38,7 @@
 cd C:\Users\XXJ\Documents\deepseek-harness\default-workspace\_plugins\precise-billing
 git add -A
 git commit -m "release: v0.2.1"
-git remote add origin https://github.com/<你的用户名>/dsh-precise-billing.git
+git remote add origin https://github.com/SheldonJinn/dsh-precise-billing.git
 git branch -M main
 git push -u origin main
 ```
@@ -78,11 +78,11 @@ npm publish --access public
 这是 DSH 内置「发现」和 dsh-market 等市场的重要目录，需要提交一个 YAML 文件：
 
 1. Fork <https://github.com/awesome-dsh-plugin/awesome-dsh-plugin>
-2. 新建 `data/plugins/<owner>__<repo>.yml`，例如：
+2. 新建 `data/plugins/SheldonJinn__<repo>.yml`，例如：
 
    ```yaml
-   url: https://github.com/<owner>/dsh-precise-billing
-   name: <owner>/dsh-precise-billing
+   url: https://github.com/SheldonJinn/dsh-precise-billing
+   name: SheldonJinn/dsh-precise-billing
    category: usage          # 计费/用量类；可选值见 contributing.md
    description:
      en: Per-request DeepSeek billing with peak/off-peak pricing, usage dashboard, calendar and hot restart.
