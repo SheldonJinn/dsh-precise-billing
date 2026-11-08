@@ -1,9 +1,9 @@
 {
   "name": "@local/precise-billing",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
-  "description": "按 DeepSeek 官方人民币价目逐请求精确计算会话费用（峰谷时段、法定节假日），提供费用条、侧栏卡片、用量看板与一键热重启",
+  "description": "按 DeepSeek 官方人民币价目逐请求精确计算会话费用（峰谷时段、法定节假日），提供费用条、侧栏卡片、用量看板（趋势/日历/年视图）与三段式热重启",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",

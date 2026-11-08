@@ -3012,7 +3012,7 @@ function closeIcon(size = 14) {
               h('div', { style: { width: 300, padding: 8, borderRadius: 8, border: '1px dashed var(--dsw-alias-border-l1, rgba(0,0,0,.18))' } },
                 buildSidebar(draft, families, data, account, now, true))))),
 
-        h(Section, { title: '参考项目', desc: '本插件的用量看板与热重启分别参考了下面两个开源插件（MIT 许可）。' },
+        h(Section, { title: '参考项目', desc: '本插件的用量看板与热重启分别参考了下面两个开源插件（MIT 许可）。原版可按下面的地址与命令自行安装。' },
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 } },
             h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' } },
               h('div', { style: { minWidth: 0, flex: '1 1 240px' } },
