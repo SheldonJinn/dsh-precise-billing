@@ -4,7 +4,7 @@
 
 - **作者**：Sheldon Jinn
 - **版本**：0.2.1
-- **包名**：`@local/precise-billing`
+- **包名**：`dsh-precise-billing`
 - **类型**：DSH 本地插件（Host + Client）
 
 ## 快速上手

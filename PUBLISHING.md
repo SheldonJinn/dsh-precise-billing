@@ -1,6 +1,6 @@
 # 发布指南（GitHub / npm / DSH 插件市场）
 
-> 当前状态：本地插件名 `@local/precise-billing`，`private: true`，只能 link 安装，不能直接发布。
+> 当前状态：本地插件名 `dsh-precise-billing`，`private: true`，只能 link 安装，不能直接发布。
 
 ## 1. 改成可发布的包名（必须）
 
@@ -26,11 +26,11 @@
    ```
 3. 重新安装本地 link（包名变了，profile 依赖键也要变）：
    ```bash
-   dsh plugin --profile desktop remove @local/precise-billing
+   dsh plugin --profile desktop remove dsh-precise-billing
    dsh plugin --profile desktop add link:C:\Users\XXJ\Documents\deepseek-harness\default-workspace\_plugins\precise-billing
    ```
    然后重启 DSH。
-4. 本地版本改名后，`@local/precise-billing` 的旧链接不会再被加载，确认设置/数据（`$DSH_HOME/storages/precise-billing.json`）不受影响即可。
+4. 本地版本改名后，`dsh-precise-billing` 的旧链接不会再被加载，确认设置/数据（`$DSH_HOME/storages/precise-billing.json`）不受影响即可。
 
 ## 2. 发布到 GitHub
 

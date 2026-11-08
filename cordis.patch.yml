@@ -1,4 +1,4 @@
 # precise-billing bundle patch
 - insert:
     - id: precise-billing
-      name: '@local/precise-billing'
+      name: 'dsh-precise-billing'

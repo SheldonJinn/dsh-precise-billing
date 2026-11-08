@@ -1,7 +1,6 @@
 {
-  "name": "@local/precise-billing",
+  "name": "dsh-precise-billing",
   "version": "0.2.1",
-  "private": true,
   "type": "module",
   "description": "按 DeepSeek 官方人民币价目（峰谷时段、节假日）逐请求精确计费，并提供费用条、侧栏卡片、用量看板与三段式热重启",
   "exports": {
