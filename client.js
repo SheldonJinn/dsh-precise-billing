@@ -5,7 +5,7 @@
  *  - 设置 → 精确计费：分组表单 + 实时预览
  */
 window.__ModuleLoader__.load({
-  id: '@local/precise-billing',
+  id: 'dsh-precise-billing',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
