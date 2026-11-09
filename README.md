@@ -3,7 +3,7 @@
 > 按 DeepSeek 官方人民币价目（含峰谷时段与法定节假日）**逐条请求**精确计算会话费用，并提供费用条、侧栏卡片、用量看板（趋势 / 日历 / 年视图）与三段式热重启。
 
 - **作者**：Sheldon Jinn
-- **版本**：0.2.1
+- **版本**：0.2.2
 - **包名**：`dsh-precise-billing`
 - **类型**：DSH 本地插件（Host + Client）
 
@@ -162,6 +162,11 @@ dsh plugin --profile desktop add link:C:\Users\XXJ\Documents\deepseek-harness\de
 > 更多说明见仓库内 `CREDITS.md`；设置页底部「参考项目」也提供了一键打开主页与复制安装命令。
 
 ## 更新日志
+
+### 0.2.2
+
+- 修复改包名后 client 模块 id 仍为 `@local/precise-billing` 导致的重复注册与启动崩溃；
+- 清理 profile 中残留的旧符号链接。
 
 ### 0.2.1
 
