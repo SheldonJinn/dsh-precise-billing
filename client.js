@@ -3068,6 +3068,23 @@ function closeIcon(size = 14) {
               h('div', { style: { display: 'flex', gap: 6, flex: '0 0 auto' } },
                 h('button', { type: 'button', onClick: () => { try { window.open('https://github.com/J-Chien/dsh-meter', '_blank', 'noopener'); } catch { /* ignore */ } } }, '打开主页'),
                 h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('dsh plugin --profile desktop add dsh-meter'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))))),
+        h(Section, { title: '发布信息', desc: '本插件已开源并发布到 npm，可直接安装或查看源码。' },
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 6 } },
+            h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' } },
+              h('div', { style: { minWidth: 0, flex: '1 1 240px' } },
+                h('div', { style: { fontSize: 12.5, fontWeight: 600 } }, 'GitHub 仓库'),
+                h('a', { href: 'https://github.com/SheldonJinn/dsh-precise-billing', target: '_blank', rel: 'noopener noreferrer', style: { display: 'inline-block', marginTop: 3, fontSize: 11, color: '#2f6fed', wordBreak: 'break-all' } }, 'https://github.com/SheldonJinn/dsh-precise-billing')),
+              h('div', { style: { display: 'flex', gap: 6, flex: '0 0 auto' } },
+                h('button', { type: 'button', onClick: () => { try { window.open('https://github.com/SheldonJinn/dsh-precise-billing', '_blank', 'noopener'); } catch { /* ignore */ } } }, '打开主页'),
+                h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('dsh plugin --profile desktop add dsh-precise-billing'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))),
+            h('div', { style: { height: 1, background: 'rgba(0,0,0,.07)' } }),
+            h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' } },
+              h('div', { style: { minWidth: 0, flex: '1 1 240px' } },
+                h('div', { style: { fontSize: 12.5, fontWeight: 600 } }, 'npm 包'),
+                h('a', { href: 'https://www.npmjs.com/package/dsh-precise-billing', target: '_blank', rel: 'noopener noreferrer', style: { display: 'inline-block', marginTop: 3, fontSize: 11, color: '#2f6fed', wordBreak: 'break-all' } }, 'https://www.npmjs.com/package/dsh-precise-billing')),
+              h('div', { style: { display: 'flex', gap: 6, flex: '0 0 auto' } },
+                h('button', { type: 'button', onClick: () => { try { window.open('https://www.npmjs.com/package/dsh-precise-billing', '_blank', 'noopener'); } catch { /* ignore */ } } }, '打开主页'),
+                h('button', { type: 'button', onClick: () => { const ok = copyRestartLog('npm i dsh-precise-billing'); if (ok) notify('安装命令已复制到剪贴板'); else notify('复制失败'); } }, '复制安装命令'))))),
 
       );
     }

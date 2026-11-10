@@ -3,7 +3,7 @@
 > 按 DeepSeek 官方人民币价目（含峰谷时段与法定节假日）**逐条请求**精确计算会话费用，并提供费用条、侧栏卡片、用量看板（趋势 / 日历 / 年视图）与三段式热重启。
 
 - **作者**：Sheldon Jinn
-- **版本**：0.2.2
+- **版本**：0.2.3
 - **包名**：`dsh-precise-billing`
 - **类型**：DSH 本地插件（Host + Client）
 
@@ -13,6 +13,8 @@
 - **开看板**：侧栏卡片右上角 ▦ 图标，或 设置 → 精确计费 → 用量面板；
 - **改设置**：侧栏卡片右上角 ⚙，或 设置 → 插件 → 精确计费；改完自动保存；
 - **热重启**：侧栏卡片右上角 ↻，先检查运行中对话，再确认重启。
+
+> **已发布**：GitHub <https://github.com/SheldonJinn/dsh-precise-billing> · npm <https://www.npmjs.com/package/dsh-precise-billing>
 
 ## 界面预览
 
@@ -162,6 +164,11 @@ dsh plugin --profile desktop add link:C:\Users\XXJ\Documents\deepseek-harness\de
 > 更多说明见仓库内 `CREDITS.md`；设置页底部「参考项目」也提供了一键打开主页与复制安装命令。
 
 ## 更新日志
+
+### 0.2.3
+
+- 设置页底部新增「发布信息」：GitHub 仓库与 npm 包地址、安装命令；
+- README、插件列表说明补充开源与发布信息。
 
 ### 0.2.2
 

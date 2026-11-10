@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Precise Billing",
-    "description": "Per-request billing with official DeepSeek CNY pricing (peak/off-peak, holidays), plus cost bar, sidebar card, usage dashboard and three-stage hot restart"
+    "description": "Per-request billing with official DeepSeek CNY pricing (peak/off-peak, holidays), plus cost bar, sidebar card, usage dashboard and three-stage hot restartOpen source at github.com/SheldonJinn/dsh-precise-billing, published to npm as dsh-precise-billing."
   }
 }

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "精确计费",
-    "description": "按 DeepSeek 官方人民币价目（峰谷时段、节假日）逐请求精确计费，并提供费用条、侧栏卡片、用量看板与三段式热重启"
+    "description": "按 DeepSeek 官方人民币价目（峰谷时段、节假日）逐请求精确计费，并提供费用条、侧栏卡片、用量看板与三段式热重启已开源：GitHub SheldonJinn/dsh-precise-billing，npm 包 dsh-precise-billing。"
   }
 }
