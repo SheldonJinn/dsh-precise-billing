@@ -740,7 +740,12 @@ function closeIcon(size = 14) {
         const day = addDays(startOfDay, -1);
         return { from: isoDate(day), to: isoDate(day) };
       }
-      if (key === 'last7') return { from: isoDate(addDays(startOfDay, -6)), to: isoDate(startOfDay) };
+      if (key === 'thisWeek') {
+    const weekday = startOfDay.getDay();
+    const monday = addDays(startOfDay, -(weekday === 0 ? 6 : weekday - 1));
+    return { from: isoDate(monday), to: isoDate(addDays(monday, 6)) };
+  }
+  if (key === 'last7') return { from: isoDate(addDays(startOfDay, -6)), to: isoDate(startOfDay) };
       if (key === 'last30') return { from: isoDate(addDays(startOfDay, -29)), to: isoDate(startOfDay) };
       if (key === 'thisMonth') {
         return { from: isoDate(new Date(startOfDay.getFullYear(), startOfDay.getMonth(), 1)), to: isoDate(new Date(startOfDay.getFullYear(), startOfDay.getMonth() + 1, 0)) };
@@ -756,15 +761,8 @@ function closeIcon(size = 14) {
       return { from: isoDate(startOfDay), to: isoDate(startOfDay) };
     }
 
-    const USAGE_RANGES = [
-      { value: 'today', label: '今天' },
-      { value: 'yesterday', label: '昨天' },
-      { value: 'last7', label: '近 7 天' },
-      { value: 'last30', label: '近 30 天' },
-      { value: 'thisMonth', label: '本月' },
-      { value: 'lastMonth', label: '上月' },
-      { value: 'thisYear', label: '今年' },
-    ];
+    const SPAN_RANGE = { day: 'today', week: 'thisWeek', month: 'thisMonth', year: 'thisYear' };
+
 
     function usageTotalTokens(tokens) {
       return (tokens.input || 0) + (tokens.cacheRead || 0) + (tokens.cacheWrite || 0) + (tokens.output || 0);
@@ -1366,12 +1364,12 @@ function closeIcon(size = 14) {
       return fetch(query, { cache: 'no-store' }).then((res) => res.json());
     }
 
-    function useUsage(rangeKey, custom, mode) {
+    function useUsage(span, mode) {
       const [state, setState] = React.useState({ status: 'loading' });
       const [tick, setTick] = React.useState(0);
       React.useEffect(() => {
         let alive = true;
-        const win = rangeKey === 'custom' && custom ? custom : rangeOf(rangeKey);
+        const win = rangeOf(SPAN_RANGE[span] || 'today');
         const prevWin = previousWindow(win);
         Promise.all([fetchUsageWindow(win, mode), fetchUsageWindow(prevWin, mode).catch(() => undefined)])
           .then(([data, prev]) => {
@@ -1383,7 +1381,7 @@ function closeIcon(size = 14) {
         return () => {
           alive = false;
         };
-      }, [rangeKey, custom && custom.from, custom && custom.to, mode, tick]);
+      }, [span, mode, tick]);
       return [state, () => setTick((x) => x + 1)];
     }
 
@@ -1415,16 +1413,13 @@ function closeIcon(size = 14) {
     function UsagePanel(props) {
       const open = useUsageOpen();
       const [tab, setTab] = React.useState('trend');
-      const [rangeKey, setRangeKey] = React.useState('today');
-      const [customFrom, setCustomFrom] = React.useState(isoDate(new Date()));
-      const [customTo, setCustomTo] = React.useState(isoDate(new Date()));
-      const [appliedCustom, setAppliedCustom] = React.useState(null);
+      const [span, setSpan] = React.useState('day');
       const [mode, setMode] = React.useState('official');
       const [selectedModels, setSelectedModels] = React.useState('all');
       const [chartMode, setChartMode] = React.useState('trend');
       const [metric, setMetric] = React.useState('tokens');
       const [autoSec, setAutoSec] = React.useState(0);
-      const [state, reload] = useUsage(open ? rangeKey : 'today', appliedCustom, mode);
+      const [state, reload] = useUsage(open ? span : 'day', mode);
 
       React.useEffect(() => {
         if (!open) return undefined;
@@ -1454,7 +1449,7 @@ function closeIcon(size = 14) {
       const prevFiltered = state.prev ? filterUsageByModels(state.prev, selectedModels === 'all' ? null : selectedModels) : undefined;
       const prevData = applyLocalSplit(prevFiltered);
       const prevTotals = (prevData && prevData.totals) || { models: [] };
-      const win = state.win || (rangeKey === 'custom' && appliedCustom ? appliedCustom : rangeOf(rangeKey));
+      const win = state.win || rangeOf(SPAN_RANGE[span] || 'today');
       const chartDays = data ? fillDaysWithWindow(data.days, win) : undefined;
       const balance = (props && props.account && props.account.logged && props.account.balance) || (data && data.balance && data.balance.balance);
       const loading = state.status === 'loading';
@@ -1497,23 +1492,13 @@ function closeIcon(size = 14) {
                 },
               }, key === 'trend' ? '用量趋势' : '用量日历'))),
             h('div', { style: usagePanelStyles.controls },
-              h('select', {
-                value: rangeKey,
-                onChange: (event) => setRangeKey(event.target.value),
-                title: tab === 'calendar' ? '趋势页的时间范围（日历页用下方年月导航）' : '时间范围',
-                style: { flex: '1 1 170px', fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(0,0,0,.26)', background: 'transparent', color: 'inherit', minWidth: 132, opacity: tab === 'calendar' ? 0.55 : 1 },
-              }, USAGE_RANGES.concat([{ value: 'custom', label: '自定义' }]).map((item) => h('option', { key: item.value, value: item.value }, item.label))),
-              tab === 'trend' && rangeKey === 'custom'
-                ? h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5 } },
-                    h('input', { type: 'date', value: customFrom, onChange: (event) => setCustomFrom(event.target.value), style: { fontSize: 11.5, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.26)', background: 'transparent', color: 'inherit' } }),
-                    h('span', null, '~'),
-                    h('input', { type: 'date', value: customTo, onChange: (event) => setCustomTo(event.target.value), style: { fontSize: 11.5, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(0,0,0,.26)', background: 'transparent', color: 'inherit' } }),
-                    h('button', {
-                      type: 'button',
-                      onClick: () => setAppliedCustom({ from: customFrom, to: customTo < customFrom ? customFrom : customTo }),
-                      style: { fontSize: 11.5, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(47,111,237,.45)', color: '#2f6fed', background: 'transparent', cursor: 'pointer' },
-                    }, '应用'))
-                : null,
+            h('div', { style: groupStyle, title: '统计范围' },
+              [['day', '日'], ['week', '周'], ['month', '月'], ['year', '年']].map(([key, label]) => h('button', {
+                key,
+                type: 'button',
+                onClick: () => setSpan(key),
+                style: toggleStyle(span === key),
+              }, label))),
               h('div', { style: groupStyle },
                 ['official', 'local'].map((key) => h('button', {
                   key,
