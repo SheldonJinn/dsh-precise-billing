@@ -481,7 +481,7 @@ function closeIcon(size = 14) {
       if (settings.chipPhase !== false) {
         parts.push(h('span', { key: 'phase', style: { color: phaseNow.peak ? PEAK_COLOR : OFF_COLOR, fontWeight: 600 } }, phaseNow.peak ? '峰时' : '闲时'));
       }
-      if (settings.chipSession !== false) parts.push(h('span', { key: 'self' }, '本次 ' + primary));
+      if (settings.chipSession !== false) parts.push(h('span', { key: 'self' }, '本对话 ' + primary));
       if (settings.chipToday !== false && settings.showToday !== false) parts.push(h('span', { key: 'today' }, '今日 ' + money(todayValue)));
       if (settings.chipTotal !== false && settings.showTotal !== false) parts.push(h('span', { key: 'total' }, '累计 ' + money(totalValue)));
       if (settings.chipBalance !== false && account?.logged === true && Number.isFinite(Number(account.balance))) parts.push(h('span', { key: 'balance' }, '余额 ' + money(Number(account.balance))));
@@ -499,7 +499,7 @@ function closeIcon(size = 14) {
         onMouseEnter: options.onMouseEnter,
         onMouseLeave: options.onMouseLeave,
         title: [
-          '本次 ' + (data?.session ? money(data.session.cost) : '—') + ' · 今日 ' + money(todayValue) + ' · 累计 ' + money(totalValue) + ' · 余额 ' + (account?.logged === true ? money(Number(account.balance)) : '—'),
+          '本对话 ' + (data?.session ? money(data.session.cost) : '—') + ' · 今日 ' + money(todayValue) + ' · 累计 ' + money(totalValue) + ' · 余额 ' + (account?.logged === true ? money(Number(account.balance)) : '—'),
           parts2.join(' · '),
         ].join('\n'),
         style: {
@@ -2950,7 +2950,7 @@ function closeIcon(size = 14) {
           barHidden ? null : h(Field, { label: '显示内容' },
             h('div', { style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center' } },
               h(Check, { label: '峰时/闲时', checked: draft.chipPhase !== false, onChange: (value) => set({ chipPhase: value }) }),
-              h(Check, { label: '本次', checked: draft.chipSession !== false, onChange: (value) => set({ chipSession: value }) }),
+              h(Check, { label: '本对话', checked: draft.chipSession !== false, onChange: (value) => set({ chipSession: value }) }),
               h(Check, { label: '今日', checked: draft.chipToday !== false, onChange: (value) => set({ chipToday: value }) }),
               h(Check, { label: '累计', checked: draft.chipTotal !== false, onChange: (value) => set({ chipTotal: value }) }),
               h(Check, { label: '余额', checked: draft.chipBalance !== false, onChange: (value) => set({ chipBalance: value }) }))),
